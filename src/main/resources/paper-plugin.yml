@@ -1,0 +1,17 @@
+name: VineriumCore
+version: '1.0'
+author: SaintQd
+main: org.saintqd.vineriumcore.VineriumCore
+description: VineriumCore Plugin
+api-version: '1.21.4'
+dependencies:
+  server:
+    VineriumLib:
+      load: BEFORE
+      required: true
+    PlaceholderAPI:
+      load: BEFORE
+      required: false
+    Vault:
+      load: BEFORE
+      required: false

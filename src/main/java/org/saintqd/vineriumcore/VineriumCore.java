@@ -1,0 +1,90 @@
+package org.saintqd.vineriumcore;
+
+import org.bukkit.Bukkit;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.java.JavaPlugin;
+import org.saintqd.vineriumcore.commands.VinCommandsManager;
+import org.saintqd.vineriumcore.listeners.PlayerListener;
+import org.saintqd.vineriumcore.managers.ConfigManager;
+import org.saintqd.vineriumcore.managers.SuffixManager;
+import org.saintqd.vineriumcore.placeholders.VinCorePlaceholders;
+import org.saintqd.vineriumlib.utils.VinUtils;
+
+import java.io.File;
+
+public class VineriumCore extends JavaPlugin {
+
+    private static VineriumCore plugin;
+    private ConfigManager configManager;
+    private VinCorePlaceholders placeholders;
+    private SuffixManager suffixManager;
+
+    public static VineriumCore inst() {
+        return plugin;
+    }
+
+    @Override
+    public void onLoad() {
+        plugin = this;
+    }
+
+    @Override
+    public void onEnable() {
+        setupDefaultConfig();
+        this.configManager = new ConfigManager();
+        this.suffixManager = new SuffixManager();
+
+        this.configManager.checkConfigs();
+
+        loadData();
+
+        VinCommandsManager.setupCommands(this);
+
+        getServer().getPluginManager().registerEvents(new PlayerListener(), this);
+
+        // Подключаем плейсхолдеры
+        if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
+            placeholders = new VinCorePlaceholders(this);
+            placeholders.register();
+        } else {
+            placeholders = null;
+            VinUtils.sendDebugMessage(0,"<yellow>Could not find PlaceholderAPI! Placeholders won't be registered.");
+        }
+    }
+
+    @Override
+    public void onDisable() {
+        VinUtils.updateJarFile(this,this.getFile());
+    }
+
+    public void loadData() {
+        reloadConfig();
+        long startTime = System.currentTimeMillis();
+        long prevTime = startTime;
+
+        suffixManager.loadSuffixes(this);
+        long time = System.currentTimeMillis();
+        getLogger().info("Loaded " + suffixManager.getSuffixes().size() + " suffixes. ("+(time-prevTime)+" ms)");
+        prevTime = System.currentTimeMillis();
+    }
+
+    public String getMainDirectory() {
+        return getDataFolder().getPath() + File.separator;
+    }
+
+    private void setupDefaultConfig() {
+
+    }
+
+    public ConfigManager getConfigManager() {
+        return configManager;
+    }
+
+    public SuffixManager getSuffixManager() {
+        return suffixManager;
+    }
+
+    public VinCorePlaceholders getPlaceholders() {
+        return placeholders;
+    }
+}

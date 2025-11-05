@@ -1,0 +1,11 @@
+name: VineriumCore
+version: 1.0
+author: SaintQd
+main: org.saintqd.vineriumcore.VineriumCore
+api-version: 1.21.4
+depend: [VineriumLib]
+softdepend: [PlaceholderAPI]
+permissions:
+  vineriumcore.admin:
+    description: Access to admin commands.
+    default: op
