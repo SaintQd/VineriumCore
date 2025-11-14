@@ -6,13 +6,12 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 import io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.saintqd.vineriumcore.VineriumCore;
 import org.saintqd.vineriumcore.gui.SuffixGUI;
 import org.saintqd.vineriumcore.suffix.VinSuffix;
+import org.saintqd.vineriumlib.VineriumLib;
 import org.saintqd.vineriumlib.utils.VinUtils;
 
 public class SuffixCommandsManager {
@@ -90,10 +89,10 @@ public class SuffixCommandsManager {
         if (player == null) return;
 
         SuffixGUI suffixGUI = new SuffixGUI(player);
-        suffixGUI.setMainMenu();
+        suffixGUI.setMainMenu(1);
         suffixGUI.openInventory();
         if (sender != player)
-            sender.sendMessage(VinUtils.parseString("<yellow>Меню суффиксов открыто для игрока <gold>"+player.getName()+"<yellow>."));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixMenuOpenedForPlayer", player.getName()));
     }
 
     private static void setSuffixCommand(CommandSender sender, String suffixName, Player player) {
@@ -101,12 +100,12 @@ public class SuffixCommandsManager {
         player = VinUtils.checkForPlayerPresent(sender,player);
         if (player == null) return;
         if (suffixName == null) {
-            sender.sendMessage(VinUtils.parseString("<red>Использование: <gold>/vin suffix set [название_суффикса] <никнейм>"));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixCommandUsage"));
             return;
         }
         VinSuffix suffix = VineriumCore.inst().getSuffixManager().getSuffixes().get(suffixName);
         if (suffix == null) {
-            sender.sendMessage(VinUtils.parseString("<red>Суффикс с названием <gold>"+ suffixName +" <red>не существует."));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixDoesntExist",suffixName));
             return;
         }
         suffix.changeSuffix(sender,player);

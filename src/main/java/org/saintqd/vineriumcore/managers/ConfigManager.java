@@ -19,11 +19,18 @@ public class ConfigManager {
         }
         YamlConfiguration suffixYaml = YamlConfiguration.loadConfiguration(suffixFile);
         suffixYaml.addDefault("HideWithoutPermission",true);
-        suffixYaml.addDefault("Suffixes.Test.Display","<gray>Тестовый суффикс");
-        suffixYaml.addDefault("Suffixes.Test.Desc", List.of("<white>Описание тестового суффикса.","<white>Может быть многострочным."));
-        suffixYaml.addDefault("Suffixes.Test.Model","test");
-        suffixYaml.addDefault("Suffixes.Test.Permission","vineriumcore.suffix.test");
-        suffixYaml.addDefault("Suffixes.Test.Symbol","+");
+        suffixYaml.addDefault("MenuTitle","Suffixes");
+        suffixYaml.addDefault("MenuPageSize",36);
+        suffixYaml.addDefault("MenuModels.CloseButton","minecraft:paper");
+        suffixYaml.addDefault("MenuModels.PrevPageButton","minecraft:arrow");
+        suffixYaml.addDefault("MenuModels.NextPageButton","minecraft:arrow");
+        if (!suffixYaml.contains("Suffixes")) {
+            suffixYaml.addDefault("Suffixes.Test.Display", "<gray>Тестовый суффикс");
+            suffixYaml.addDefault("Suffixes.Test.Desc", List.of("<white>Описание тестового суффикса.", "<white>Может быть многострочным."));
+            suffixYaml.addDefault("Suffixes.Test.Model", "test");
+            suffixYaml.addDefault("Suffixes.Test.Permission", "vineriumcore.suffix.test");
+            suffixYaml.addDefault("Suffixes.Test.Symbol", "+");
+        }
         suffixYaml.options().copyDefaults(true);
         try {
             suffixYaml.save(suffixFile);

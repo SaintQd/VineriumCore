@@ -28,8 +28,6 @@ public class VinSuffix {
         this.symbol = suffixConfig.getString("Symbol","+");
     }
 
-
-
     public String getName() {
         return name;
     }

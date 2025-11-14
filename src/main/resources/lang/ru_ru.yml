@@ -1,0 +1,13 @@
+Lang:
+  notEnoughArguments: "<red>Недостаточно аргументов."
+  menuPrevPage: "Предыдущая страница"
+  menuPrevPageLore: "<yellow>Нажмите, чтобы открыть предыдущую страницу."
+  menuNextPage: "Следующая страница"
+  menuNextPageLore: "<yellow>Нажмите, чтобы открыть следующую страницу."
+  menuClose: "<red>Выйти из меню"
+  menuCloseLore: "<yellow>Нажмите, чтобы выйти из меню."
+  suffixPressToSelect: "<yellow>Нажмите, чтобы выбрать суффикс..."
+  suffixNoPermission: "<red>У вас нет прав для выбора данного суффикса!"
+  suffixMenuOpenedForPlayer: "<yellow>Меню суффиксов открыто для игрока <gold>{1}<yellow>."
+  suffixCommandUsage: "<red>Использование: <gold>/vin suffix set [название_суффикса] <никнейм>"
+  suffixDoesntExist: "<red>Суффикс с названием <gold>{1} <red>не существует."
