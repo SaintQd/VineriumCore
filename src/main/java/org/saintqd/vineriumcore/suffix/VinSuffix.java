@@ -58,7 +58,7 @@ public class VinSuffix {
             audience.sendMessage(VinUtils.parseString("<red>Поддержка суффиксов в данный момент отключена. Обратитесь к администрации, если считаете, что произошла ошибка."));
             return;
         }
-        vaultManager.getChatProvider().setPlayerSuffix(player, symbol);
+        vaultManager.getChatProvider().setPlayerSuffix(null,player, symbol);
         audience.sendMessage(VinUtils.parseString("<green>Суффикс успешно установлен на <reset>"+symbol+"<green>."));
     }
 
@@ -68,7 +68,7 @@ public class VinSuffix {
             audience.sendMessage(VinUtils.parseString("<red>Поддержка суффиксов в данный момент отключена. Обратитесь к администрации, если считаете, что произошла ошибка."));
             return;
         }
-        vaultManager.getChatProvider().setPlayerSuffix(player, null);
+        vaultManager.getChatProvider().setPlayerSuffix(null,player, null);
         audience.sendMessage(VinUtils.parseString("<green>Суффикс успешно убран."));
     }
 }
