@@ -3,7 +3,6 @@ package org.saintqd.vineriumcore.suffix;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
-import org.saintqd.vineriumcore.VineriumCore;
 import org.saintqd.vineriumlib.VineriumLib;
 import org.saintqd.vineriumlib.managers.VaultManager;
 import org.saintqd.vineriumlib.utils.VinUtils;

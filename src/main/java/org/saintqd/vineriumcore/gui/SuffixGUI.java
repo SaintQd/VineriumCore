@@ -56,7 +56,13 @@ public class SuffixGUI extends VinGUI {
             if (hasPermission) {
                 loreBuilder.addLine(Component.empty());
                 loreBuilder.addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixPressToSelect"));
-                VinGUIButton button = new VinGUIButton().consumer(event -> suffix.changeSuffix(getPlayer(),getPlayer()));
+                loreBuilder.addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixPressToRemove"));
+                VinGUIButton button = new VinGUIButton().consumer(event -> {
+                    switch (event.getClick()) {
+                        case LEFT -> suffix.changeSuffix(getPlayer(),getPlayer());
+                        case RIGHT -> VinSuffix.clearSuffix(getPlayer(),getPlayer());
+                    }
+                });
                 getButtons().put(slotIndex,button);
             }
             else {
