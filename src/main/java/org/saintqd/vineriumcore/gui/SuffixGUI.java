@@ -11,6 +11,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.permissions.PermissionAttachmentInfo;
 import org.intellij.lang.annotations.Subst;
 import org.saintqd.vineriumcore.VineriumCore;
 import org.saintqd.vineriumcore.suffix.VinSuffix;
@@ -20,7 +21,7 @@ import org.saintqd.vineriumlib.gui.VinGUIButton;
 import org.saintqd.vineriumlib.gui.holders.VinGUIHolder;
 import org.saintqd.vineriumlib.utils.VinUtils;
 
-import java.util.HashMap;
+import java.util.*;
 
 public class SuffixGUI extends VinGUI {
 
@@ -33,14 +34,32 @@ public class SuffixGUI extends VinGUI {
         int loopIndex = 0;
         int menuPageSize = VineriumCore.inst().getSuffixManager().getMenuPageSize();
         HashMap<Integer,ItemStack> suffixItems = new HashMap<>();
-        for (VinSuffix suffix : VineriumCore.inst().getSuffixManager().getSuffixes().values()) {
+
+        // Создаём список пермишенов на суффиксы, которые есть у игрока
+        List<String> suffixPermissions = new ArrayList<>(getPlayer().getEffectivePermissions().stream().map(PermissionAttachmentInfo::getPermission)
+                .filter(permission -> permission.startsWith("vineriumcore.suffix")).toList());
+        if (getPlayer().hasPermission("vineriumcore.admin") || getPlayer().isOp())
+            suffixPermissions.addAll(VineriumCore.inst().getSuffixManager().getPermissionsToSuffix().keySet());
+
+        // Создаём из списка пермишенов список доступных игроку суффиксов
+        //  True - если есть пермишен
+        //  False - если нет
+        HashMap<String,Boolean> availableSuffixes = new HashMap<>();
+        for (String permission : VineriumCore.inst().getSuffixManager().getPermissionsToSuffix().keySet()) {
+            if (suffixPermissions.contains(permission))
+                availableSuffixes.put(VineriumCore.inst().getSuffixManager().getPermissionsToSuffix().get(permission),true);
+            else
+                availableSuffixes.put(VineriumCore.inst().getSuffixManager().getPermissionsToSuffix().get(permission),false);
+        }
+
+        for (String suffixName : availableSuffixes.keySet()) {
+
+            VinSuffix suffix = VineriumCore.inst().getSuffixManager().getSuffixes().get(suffixName);
+            if (VineriumCore.inst().getSuffixManager().isHideWithoutPermission() && !availableSuffixes.get(suffixName)) continue;
 
             loopIndex++;
             if (loopIndex <= (page - 1) * (menuPageSize - 9)) continue; // Проверки для отображения суффиксов только текущей страницы
             if (loopIndex > page * (menuPageSize - 9)) break;
-
-            boolean hasPermission = getPlayer().hasPermission(suffix.getPermission());
-            if (!hasPermission && VineriumCore.inst().getSuffixManager().isHideWithoutPermission()) continue;
 
             ItemStack suffixItem = ItemStack.of(Material.STONE);
             suffixItem.setData(DataComponentTypes.CUSTOM_NAME, VinUtils.parseString(suffix.getDisplayName()));
@@ -53,7 +72,7 @@ public class SuffixGUI extends VinGUI {
                 loreBuilder.addLine(Component.empty());
                 loreBuilder.addLines(VinUtils.parseStringList(suffix.getDesc()));
             }
-            if (hasPermission) {
+            if (availableSuffixes.get(suffixName)) {
                 loreBuilder.addLine(Component.empty());
                 loreBuilder.addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixPressToSelect"));
                 loreBuilder.addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixPressToRemove"));

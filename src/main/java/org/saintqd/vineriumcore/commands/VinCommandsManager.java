@@ -9,12 +9,13 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
+import org.jetbrains.annotations.NotNull;
 import org.saintqd.vineriumcore.VineriumCore;
 
 public class VinCommandsManager {
 
     public static void setupCommands(VineriumCore plugin) {
-        LifecycleEventManager<Plugin> manager = plugin.getLifecycleManager();
+        LifecycleEventManager<@NotNull Plugin> manager = plugin.getLifecycleManager();
         manager.registerEventHandler(LifecycleEvents.COMMANDS, event -> {
             final Commands commands = event.registrar();
             commands.register(
