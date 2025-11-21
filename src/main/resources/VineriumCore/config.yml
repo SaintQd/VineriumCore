@@ -1,0 +1,253 @@
+SameIpCheck:
+  Enabled: true
+  OnlyOnFirstJoin: true
+Language: ru_ru
+Compatibility:
+  DiscordSRV:
+    MessageFormats:
+      CMIKickMessage:
+        Webhook:
+          Enabled: false
+          AvatarUrl: '%botavatarurl%'
+          Name: '%botname%'
+        Content: ''
+        Embed:
+          Enabled: true
+          Color: '#999900'
+          Author:
+            ImageUrl: '%embedavatarurl%'
+            Name: ᴋɪᴄᴋᴇᴅ
+            Url: ''
+          ThumbnailUrl: ''
+          Title:
+            Text: ''
+            Url: ''
+          Description: |-
+            ▸ Игрок %username% был кикнут!
+            ▸ Модератор: {1}
+            ▸ Причина: {2}
+          Fields: []
+          ImageUrl: ''
+          Footer:
+            Text: ''
+            IconUrl: ''
+          Timestamp: false
+      CMIBanMessage:
+        Webhook:
+          Enabled: false
+          AvatarUrl: '%botavatarurl%'
+          Name: '%botname%'
+        Content: ''
+        Embed:
+          Enabled: true
+          Color: '#cc2200'
+          Author:
+            ImageUrl: '%embedavatarurl%'
+            Name: ʙᴀɴɴᴇᴅ
+            Url: ''
+          ThumbnailUrl: ''
+          Title:
+            Text: ''
+            Url: ''
+          Description: |-
+            ▸ Игрок %username% был забанен!
+            ▸ Модератор: {1}
+            ▸ Причина: {2}
+            ▸ Время: {3}
+          Fields: []
+          ImageUrl: ''
+          Footer:
+            Text: ''
+            IconUrl: ''
+          Timestamp: false
+      CMIUnbanMessage:
+        Webhook:
+          Enabled: false
+          AvatarUrl: '%botavatarurl%'
+          Name: '%botname%'
+        Content: ''
+        Embed:
+          Enabled: true
+          Color: '#727374'
+          Author:
+            ImageUrl: '%embedavatarurl%'
+            Name: ᴜɴʙᴀɴɴᴇᴅ
+            Url: ''
+          ThumbnailUrl: ''
+          Title:
+            Text: ''
+            Url: ''
+          Description: |-
+            ▸ Игрок %username% был разбанен!
+            ▸ Модератор: {1}
+            ▸ Причина: Решение администрации
+          Fields: []
+          ImageUrl: ''
+          Footer:
+            Text: ''
+            IconUrl: ''
+          Timestamp: false
+      CMIIPBanMessage:
+        Webhook:
+          Enabled: false
+          AvatarUrl: '%botavatarurl%'
+          Name: '%botname%'
+        Content: ''
+        Embed:
+          Enabled: true
+          Color: '#cc2200'
+          Author:
+            ImageUrl: ''
+            Name: ʙᴀɴɴᴇᴅ
+            Url: ''
+          ThumbnailUrl: ''
+          Title:
+            Text: ''
+            Url: ''
+          Description: |-
+            ▸ IP-адрес {1} был забанен!
+            ▸ Модератор: {2}
+            ▸ Причина: {3}
+            ▸ Время: {4}
+          Fields: []
+          ImageUrl: ''
+          Footer:
+            Text: ''
+            IconUrl: ''
+          Timestamp: false
+      CMIIPUnbanMessage:
+        Webhook:
+          Enabled: false
+          AvatarUrl: '%botavatarurl%'
+          Name: '%botname%'
+        Content: ''
+        Embed:
+          Enabled: true
+          Color: '#727374'
+          Author:
+            ImageUrl: ''
+            Name: ᴜɴʙᴀɴɴᴇᴅ
+            Url: ''
+          ThumbnailUrl: ''
+          Title:
+            Text: ''
+            Url: ''
+          Description: |-
+            ▸ IP-адрес {1} был разбанен!
+            ▸ Модератор: {2}
+            ▸ Причина: Решение администрации
+          Fields: []
+          ImageUrl: ''
+          Footer:
+            Text: ''
+            IconUrl: ''
+          Timestamp: false
+      CMIWarnMessage:
+        Webhook:
+          Enabled: false
+          AvatarUrl: '%botavatarurl%'
+          Name: '%botname%'
+        Content: ''
+        Embed:
+          Enabled: true
+          Color: '#ffac11'
+          Author:
+            ImageUrl: '%embedavatarurl%'
+            Name: ᴡᴀʀɴᴇᴅ
+            Url: ''
+          ThumbnailUrl: ''
+          Title:
+            Text: ''
+            Url: ''
+          Description: |-
+            ▸ Игроку %username% был выдан варн!
+            ▸ Модератор: {1}
+            ▸ Причина: {2}
+          Fields: []
+          ImageUrl: ''
+          Footer:
+            Text: ''
+            IconUrl: ''
+          Timestamp: false
+      CMIUnwarnMessage:
+        Webhook:
+          Enabled: false
+          AvatarUrl: '%botavatarurl%'
+          Name: '%botname%'
+        Content: ''
+        Embed:
+          Enabled: true
+          Color: '#ffac11'
+          Author:
+            ImageUrl: '%embedavatarurl%'
+            Name: ᴜɴᴡᴀʀɴᴇᴅ
+            Url: ''
+          ThumbnailUrl: ''
+          Title:
+            Text: ''
+            Url: ''
+          Description: |-
+            ▸ Игроку %username% снят варн!
+            ▸ Модератор: {1}
+            ▸ Причина: Решение администрации
+          Fields: []
+          ImageUrl: ''
+          Footer:
+            Text: ''
+            IconUrl: ''
+          Timestamp: false
+      CMIMuteMessage:
+        Webhook:
+          Enabled: false
+          AvatarUrl: '%botavatarurl%'
+          Name: '%botname%'
+        Content: ''
+        Embed:
+          Enabled: true
+          Color: '#bb8f00'
+          Author:
+            ImageUrl: '%embedavatarurl%'
+            Name: ᴍᴜᴛᴇᴅ
+            Url: ''
+          ThumbnailUrl: ''
+          Title:
+            Text: ''
+            Url: ''
+          Description: |-
+            ▸ Игрок %username% был замьючен!
+            ▸ Модератор: {1}
+            ▸ Причина: {2}
+            ▸ Время: {3}
+          Fields: []
+          ImageUrl: ''
+          Footer:
+            Text: ''
+            IconUrl: ''
+          Timestamp: false
+      CMIUnmuteMessage:
+        Webhook:
+          Enabled: false
+          AvatarUrl: '%botavatarurl%'
+          Name: '%botname%'
+        Content: ''
+        Embed:
+          Enabled: true
+          Color: '#727374'
+          Author:
+            ImageUrl: '%embedavatarurl%'
+            Name: ᴜɴᴍᴜᴛᴇᴅ
+            Url: ''
+          ThumbnailUrl: ''
+          Title:
+            Text: ''
+            Url: ''
+          Description: |-
+            ▸ Игрок %username% был размьючен!
+            ▸ Модератор: {1}
+            ▸ Причина: Решение администрации
+          Fields: []
+          ImageUrl: ''
+          Footer:
+            Text: ''
+            IconUrl: ''
+          Timestamp: false
