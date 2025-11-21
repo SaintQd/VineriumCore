@@ -32,6 +32,7 @@ public class VinCommandsManager {
                                     })
                             )
                             .then(SuffixCommandsManager.getSuffixCommands())
+                            .then(DiscordCommandsManager.getDiscordCommands())
                             .build(),
                     "Основная команда."
             );

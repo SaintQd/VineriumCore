@@ -24,7 +24,7 @@ public class PlayerListener implements Listener {
         VinSuffix suffix = VineriumCore.inst().getSuffixManager().getSuffixes().get(suffixName);
         if (!event.getPlayer().hasPermission(suffix.getPermission())) {
             vaultManager.getChatProvider().setPlayerSuffix(event.getPlayer(),null);
-            event.getPlayer().sendMessage(VinUtils.parseString("<gold>Ваш суффикс был убран, поскольку у вас больше нет прав на его использование."));
+            event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixNoPermissionRemoved"));
         }
     }
 

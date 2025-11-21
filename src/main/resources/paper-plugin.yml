@@ -15,3 +15,9 @@ dependencies:
     Vault:
       load: BEFORE
       required: false
+    CMI:
+      load: BEFORE
+      required: false
+    DiscordSRV:
+      load: BEFORE
+      required: false
