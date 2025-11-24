@@ -2,6 +2,32 @@ SameIpCheck:
   Enabled: true
   OnlyOnFirstJoin: true
 Language: ru_ru
+Messages:
+  Enabled: true
+  Join:
+    Enabled: true
+    Format: ' <gradient:#EF97D1:#AA68F6>[+] • [message]'
+  DefaultJoin:
+    Enabled: true
+    Format: ' <gradient:#EF97D1:#AA68F6>[+] • * зашёл поиграть'
+  Leave:
+    Enabled: true
+    Format: ' <gradient:#AFF5FF:#E7A6FF>[-] • [message]'
+  DefaultLeave:
+    Enabled: true
+    Format: ' <gradient:#AFF5FF:#E7A6FF>[-] • * вышел из игры'
+  FirstJoin:
+    Enabled: true
+    Format: ' <#82ECB4>[❤] • * впервые на сервере'
+  MaxLength: 100
+  NicknameFormat: '%player_name% <white>%luckperms_suffix%</white>'
+  RightClickNickname:
+    Enabled: true
+    HideInvisible: true
+    AlwaysShowGamemodes:
+      - 'CREATIVE'
+      - 'SPECTATOR'
+    Format: '%luckperms_prefix%*'
 Compatibility:
   DiscordSRV:
     MessageFormats:

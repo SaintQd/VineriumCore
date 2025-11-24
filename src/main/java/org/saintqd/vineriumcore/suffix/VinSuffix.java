@@ -3,6 +3,7 @@ package org.saintqd.vineriumcore.suffix;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+import org.saintqd.vineriumcore.VineriumCore;
 import org.saintqd.vineriumlib.VineriumLib;
 import org.saintqd.vineriumlib.managers.VaultManager;
 import org.saintqd.vineriumlib.utils.VinUtils;
@@ -54,20 +55,20 @@ public class VinSuffix {
     public void changeSuffix(Audience audience, Player player) {
         VaultManager vaultManager = VineriumLib.inst().getVaultManager();
         if (vaultManager == null || vaultManager.getChatProvider() == null) {
-            audience.sendMessage(VinUtils.parseString("<red>Поддержка суффиксов в данный момент отключена. Обратитесь к администрации, если считаете, что произошла ошибка."));
+            audience.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixAreNotSupported"));
             return;
         }
         vaultManager.getChatProvider().setPlayerSuffix(null,player, symbol);
-        audience.sendMessage(VinUtils.parseString("<green>Суффикс успешно установлен на <reset>"+symbol+"<green>."));
+        audience.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixAppliedMessage",symbol));
     }
 
     public static void clearSuffix(Audience audience, Player player) {
         VaultManager vaultManager = VineriumLib.inst().getVaultManager();
         if (vaultManager == null || vaultManager.getChatProvider() == null) {
-            audience.sendMessage(VinUtils.parseString("<red>Поддержка суффиксов в данный момент отключена. Обратитесь к администрации, если считаете, что произошла ошибка."));
+            audience.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixAreNotSupported"));
             return;
         }
         vaultManager.getChatProvider().setPlayerSuffix(null,player, null);
-        audience.sendMessage(VinUtils.parseString("<green>Суффикс успешно убран."));
+        audience.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixRemovedMessage"));
     }
 }
