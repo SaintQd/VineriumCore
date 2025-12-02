@@ -7,10 +7,8 @@ import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 import io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver;
 import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+import kotlin.Pair;
 import me.clip.placeholderapi.PlaceholderAPI;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.TextComponent;
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -18,13 +16,12 @@ import org.bukkit.permissions.PermissionAttachmentInfo;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.saintqd.vineriumcore.VineriumCore;
+import org.saintqd.vineriumcore.managers.PlayerManager;
 import org.saintqd.vineriumlib.VineriumLib;
 import org.saintqd.vineriumlib.managers.VaultManager;
 import org.saintqd.vineriumlib.utils.VinUtils;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -106,6 +103,20 @@ public class VinCommandsManager {
                                                         return Command.SINGLE_SUCCESS;
                                                     })
                                             )
+                                    )
+                            )
+                            .then(Commands.literal("pvptoggle")
+                                    .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.pvptoggle"))
+                                    .executes(ctx -> {
+                                        pvpToggleCommand(ctx.getSource().getSender(),null);
+                                        return com.mojang.brigadier.Command.SINGLE_SUCCESS;
+                                    })
+                                    .then(Commands.argument("player", ArgumentTypes.player())
+                                            .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.admin"))
+                                            .executes(ctx -> {
+                                                pvpToggleCommand(ctx.getSource().getSender(),ctx.getArgument("player", PlayerSelectorArgumentResolver.class).resolve(ctx.getSource()).getFirst());
+                                                return com.mojang.brigadier.Command.SINGLE_SUCCESS;
+                                            })
                                     )
                             )
                             .then(SuffixCommandsManager.getSuffixCommands())
@@ -231,5 +242,43 @@ public class VinCommandsManager {
                 ? PlaceholderAPI.setPlaceholders(player,leaveMessageFormat)
                 : leaveMessageFormat;
         sender.sendMessage(VinUtils.parseString(leaveMessageFormat));
+    }
+
+    private static void pvpToggleCommand(CommandSender sender, Player player) {
+
+        player = VinUtils.checkForPlayerPresent(sender, player);
+        PlayerManager playerManager = VineriumCore.inst().getPlayerManager();
+
+        HashMap<Player, Pair<String,Long>> timers = playerManager.getTimers().getOrDefault("pvpToggleCooldown",new HashMap<>());
+        Pair<String,Long> timerVariable = timers.getOrDefault(player,new Pair<>(null,0L));
+
+        if (sender == player && !player.hasPermission("vineriumcore.admin")) {
+            double minRadiusWithoutPlayers = VineriumCore.inst().getConfig().getDouble("PvPMode.MinRadiusWithoutPlayers",-1);
+            if (minRadiusWithoutPlayers > 0 && player.getWorld().getNearbyPlayers(player.getLocation(), minRadiusWithoutPlayers).size() > 1) {
+                player.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"pvpMinRadiusWithoutPlayers",Double.toString(minRadiusWithoutPlayers)));
+                return;
+            }
+            if (timerVariable.getSecond() > VinUtils.getCurrentTick()) {
+                long remainingTime = (timerVariable.getSecond() - VinUtils.getCurrentTick()) / 20;
+                player.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"pvpToggleCooldown",Long.toString(remainingTime)));
+                return;
+            }
+        }
+        if (playerManager.getPvpModePlayers().contains(player)) {
+            playerManager.getPvpModePlayers().remove(player);
+            if (sender != player)
+                player.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"pvpModeOffForPlayer", player.getName()));
+            player.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"pvpModeOff"));
+        }
+        else {
+            playerManager.getPvpModePlayers().add(player);
+            if (sender != player)
+                player.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"pvpModeOnForPlayer", player.getName()));
+            player.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"pvpModeOn"));
+        }
+        timerVariable = new Pair<>(null,VinUtils.getCurrentTick() + VineriumCore.inst().getConfig()
+                .getLong("TimersCooldown.pvpToggleCooldown",6000L));
+        timers.put(player,timerVariable);
+        playerManager.getTimers().put("pvpToggleCooldown",timers);
     }
 }

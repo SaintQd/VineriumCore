@@ -28,6 +28,21 @@ Messages:
       - 'CREATIVE'
       - 'SPECTATOR'
     Format: '%luckperms_prefix%*'
+VillagerOptimizer:
+  Enabled: true
+  DisableUnoptimizedTrades: true
+  InteractMaterial: SHEARS
+  RestockInterval: 1000
+  RestockSound: entity.villager.celebrate
+  InteractSound: entity.villager.hurt
+PvPMode:
+  Enabled: true
+  Placeholder: '⚔ '
+  MinRadiusWithoutPlayers: 50
+TimersCooldown:
+  entityNotEnabledPvp: 200
+  damagerNotEnabledPvp: 200
+  pvpToggleCooldown: 6000
 Compatibility:
   DiscordSRV:
     MessageFormats:

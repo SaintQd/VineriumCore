@@ -3,21 +3,31 @@ package org.saintqd.vineriumcore.listeners;
 import com.Zrips.CMI.CMI;
 import com.Zrips.CMI.Containers.CMIVanish;
 import com.Zrips.CMI.Modules.Vanish.VanishAction;
+import kotlin.Pair;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.util.TriState;
 import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
+import org.bukkit.GameMode;
+import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityEvent;
+import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerGameModeChangeEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.permissions.PermissionAttachmentInfo;
+import org.bukkit.plugin.RegisteredListener;
 import org.bukkit.potion.PotionEffectType;
 import org.saintqd.vineriumcore.VineriumCore;
+import org.saintqd.vineriumcore.managers.PlayerManager;
 import org.saintqd.vineriumcore.suffix.VinSuffix;
 import org.saintqd.vineriumlib.VineriumLib;
 import org.saintqd.vineriumlib.gui.holders.VinGUIHolder;
@@ -27,6 +37,7 @@ import org.saintqd.vineriumlib.utils.VinUtils;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -88,6 +99,11 @@ public class PlayerListener implements Listener {
                 ? PlaceholderAPI.setPlaceholders(event.getPlayer(), joinMessageFormat)
                 : joinMessageFormat;
         event.joinMessage(VinUtils.parseString(joinMessageFormat));
+
+        if (event.getPlayer().permissionValue("vineriumcore.pvpenabled") == TriState.TRUE) {
+            PlayerManager playerManager = VineriumCore.inst().getPlayerManager();
+            playerManager.getPvpModePlayers().add(event.getPlayer());
+        }
     }
 
     @EventHandler
@@ -129,6 +145,15 @@ public class PlayerListener implements Listener {
                 ? PlaceholderAPI.setPlaceholders(event.getPlayer(), leaveMessageFormat)
                 : leaveMessageFormat;
         event.quitMessage(VinUtils.parseString(leaveMessageFormat));
+
+        PlayerManager playerManager = VineriumCore.inst().getPlayerManager();
+        if (playerManager.getPvpModePlayers().contains(event.getPlayer())) {
+            vaultManager.getPermissionProvider().playerAdd(null,event.getPlayer(),"vineriumcore.pvpenabled");
+            playerManager.getPvpModePlayers().remove(event.getPlayer());
+        }
+        else {
+            vaultManager.getPermissionProvider().playerRemove(null,event.getPlayer(),"vineriumcore.pvpenabled");
+        }
     }
 
     @EventHandler
@@ -155,5 +180,73 @@ public class PlayerListener implements Listener {
                 event.getPlayer().sendActionBar(VinUtils.parseString(messageFormat));
             }
         }
+    }
+
+    @EventHandler
+    public void onPlayerDamage(EntityDamageByEntityEvent event) {
+        if (event.isCancelled()) return; // Если урон уже был отменён (К примеру флагами WorldGuard), не обрабатываем
+
+        Entity damagerEntity = event.getDamager();
+
+        // Молния это CraftItem, следовательно Entity, но не LivingEntity, так что её не обрабатываем
+        if (event.getCause().equals(EntityDamageEvent.DamageCause.LIGHTNING)) {
+            return;
+        }
+
+        if (event.getCause().equals(EntityDamageEvent.DamageCause.PROJECTILE)) {
+            Projectile projectile = (Projectile) event.getDamager();
+            // Если источник выстрела - не сущность, не совершаем проверки
+            if (!(projectile.getShooter() instanceof Entity)) {
+                return;
+            }
+            damagerEntity = (Entity) projectile.getShooter();
+        }
+
+        if (!(event.getEntity() instanceof LivingEntity)) return;
+        if (!(damagerEntity instanceof LivingEntity)) return;
+
+
+        if (event.getEntity() instanceof Player entityPlayer && damagerEntity instanceof Player damagerPlayer) {
+            PlayerManager playerManager = VineriumCore.inst().getPlayerManager();
+            if (!playerManager.isPvpModeEnabled())
+                return;
+            if (damagerPlayer.hasPermission("vineriumcore.admin"))
+                return;
+            if (!playerManager.getPvpModePlayers().contains(entityPlayer)) {
+                event.setCancelled(true);
+                HashMap<Player, Pair<String,Long>> timers = playerManager.getTimers().getOrDefault("entityNotEnabledPvp",new HashMap<>());
+                Pair<String,Long> damagerVariable = timers.getOrDefault(damagerPlayer,new Pair<>(null,0L));
+                if (damagerVariable.getSecond() < VinUtils.getCurrentTick()) {
+                    damagerVariable = new Pair<>(null,VinUtils.getCurrentTick() +
+                            VineriumCore.inst().getConfig().getLong("TimersCooldown.entityNotEnabledPvp",200L));
+                    timers.put(damagerPlayer,damagerVariable);
+                    playerManager.getTimers().put("entityNotEnabledPvp",timers);
+                    damagerPlayer.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "entityNotEnabledPvp", entityPlayer.getName()));
+                }
+                return;
+            }
+            if (!playerManager.getPvpModePlayers().contains(damagerPlayer)) {
+                event.setCancelled(true);
+                HashMap<Player, Pair<String,Long>> timers = playerManager.getTimers().getOrDefault("damagerNotEnabledPvp",new HashMap<>());
+                Pair<String,Long> damagerVariable = timers.getOrDefault(damagerPlayer,new Pair<>(null,0L));
+                if (damagerVariable.getSecond() < VinUtils.getCurrentTick()) {
+                    damagerVariable = new Pair<>(null,VinUtils.getCurrentTick() +
+                            VineriumCore.inst().getConfig().getLong("TimersCooldown.damagerNotEnabledPvp",200L));
+                    timers.put(damagerPlayer,damagerVariable);
+                    playerManager.getTimers().put("damagerNotEnabledPvp",timers);
+                    damagerPlayer.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "damagerNotEnabledPvp", entityPlayer.getName()));
+                }
+                return;
+            }
+        }
+    }
+
+    // По какой-то причине у игрока во всех режимах кроме креатива скорость полёта устанавливается на 0
+    //  фиксим это с помощью штуки ниже
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onGamemodeChange(PlayerGameModeChangeEvent event) {
+        if ((event.getPlayer().getGameMode() == GameMode.ADVENTURE || event.getPlayer().getGameMode() == GameMode.SURVIVAL)
+        && event.getNewGameMode() == GameMode.SPECTATOR)
+            event.getPlayer().setFlySpeed(0.1f);
     }
 }

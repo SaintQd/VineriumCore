@@ -3,6 +3,7 @@ package org.saintqd.vineriumcore.placeholders;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.entity.Player;
 import org.saintqd.vineriumcore.VineriumCore;
+import org.saintqd.vineriumcore.managers.PlayerManager;
 
 public class VinCorePlaceholders extends PlaceholderExpansion {
 
@@ -49,10 +50,13 @@ public class VinCorePlaceholders extends PlaceholderExpansion {
 
     public enum Placeholder {
 
-        TEST {
+        PVP_MODE {
             @Override
             public String placeholderResult(VineriumCore plugin, Player player) {
-                return "";
+                PlayerManager playerManager = VineriumCore.inst().getPlayerManager();
+                if (playerManager.getPvpModePlayers().contains(player))
+                    return playerManager.getPvpPlaceholder();
+                else return "";
             }
         };
 

@@ -9,8 +9,10 @@ import org.saintqd.vineriumcore.commands.VinCommandsManager;
 import org.saintqd.vineriumcore.listeners.CMIListener;
 import org.saintqd.vineriumcore.listeners.DiscordSRVListener;
 import org.saintqd.vineriumcore.listeners.PlayerListener;
+import org.saintqd.vineriumcore.listeners.VillagerListener;
 import org.saintqd.vineriumcore.managers.ConfigManager;
 import org.saintqd.vineriumcore.managers.DiscordSRVManager;
+import org.saintqd.vineriumcore.managers.PlayerManager;
 import org.saintqd.vineriumcore.managers.SuffixManager;
 import org.saintqd.vineriumcore.placeholders.VinCorePlaceholders;
 import org.saintqd.vineriumlib.VineriumLib;
@@ -27,6 +29,7 @@ public class VineriumCore extends JavaPlugin {
     private ConfigManager configManager;
     private VinCorePlaceholders placeholders;
     private SuffixManager suffixManager;
+    private PlayerManager playerManager;
 
     // Совместимость с другими плагинами
     private boolean CMIEnabled = false;
@@ -52,6 +55,7 @@ public class VineriumCore extends JavaPlugin {
 
         this.configManager = new ConfigManager();
         this.suffixManager = new SuffixManager();
+        this.playerManager = new PlayerManager();
 
         this.configManager.checkConfigs();
 
@@ -83,6 +87,7 @@ public class VineriumCore extends JavaPlugin {
         VinCommandsManager.setupCommands(this);
 
         getServer().getPluginManager().registerEvents(new PlayerListener(), this);
+        getServer().getPluginManager().registerEvents(new VillagerListener(), this);
     }
 
     @Override
@@ -99,6 +104,8 @@ public class VineriumCore extends JavaPlugin {
         HashMap<String,String> langLines = VineriumLib.inst().getLangManager().loadLanguageFile(
                 plugin.getDataFolder().getPath() + File.separator + "lang" + File.separator + selectedLang + ".yml");
         VineriumLib.inst().getLangManager().registerLangLines(this,langLines);
+
+        playerManager.loadParams(this);
 
         if (discordSRVManager != null)
             discordSRVManager.loadDiscordData(this);
@@ -122,6 +129,10 @@ public class VineriumCore extends JavaPlugin {
 
     public SuffixManager getSuffixManager() {
         return suffixManager;
+    }
+
+    public PlayerManager getPlayerManager() {
+        return playerManager;
     }
 
     public VinCorePlaceholders getPlaceholders() {
