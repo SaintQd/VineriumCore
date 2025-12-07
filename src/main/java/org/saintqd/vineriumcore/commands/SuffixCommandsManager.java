@@ -42,7 +42,7 @@ public class SuffixCommandsManager {
                     })
                     .then(Commands.argument("suffix", StringArgumentType.word())
                             .suggests((ctx,builder) -> {
-                                String partName = builder.getInput().replace("/vin suffix set ","");
+                                String partName = builder.getRemaining();
                                 VineriumCore.inst().getSuffixManager().getSuffixes().forEach((suffixName, suffix) -> {
                                     if (suffixName.toLowerCase().startsWith(partName.toLowerCase()))
                                         builder.suggest(suffixName);

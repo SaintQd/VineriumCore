@@ -2,7 +2,6 @@ package org.saintqd.vineriumcore;
 
 import github.scarsz.discordsrv.DiscordSRV;
 import org.bukkit.Bukkit;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.saintqd.vineriumcore.commands.VinCommandsManager;
@@ -11,10 +10,11 @@ import org.saintqd.vineriumcore.listeners.DiscordSRVListener;
 import org.saintqd.vineriumcore.listeners.PlayerListener;
 import org.saintqd.vineriumcore.listeners.VillagerListener;
 import org.saintqd.vineriumcore.managers.ConfigManager;
-import org.saintqd.vineriumcore.managers.DiscordSRVManager;
+import org.saintqd.vineriumcore.managers.DynamicMobCapManager;
 import org.saintqd.vineriumcore.managers.PlayerManager;
 import org.saintqd.vineriumcore.managers.SuffixManager;
 import org.saintqd.vineriumcore.placeholders.VinCorePlaceholders;
+import org.saintqd.vineriumcore.worldguard.Flags;
 import org.saintqd.vineriumlib.VineriumLib;
 import org.saintqd.vineriumlib.utils.ResourceUtils;
 import org.saintqd.vineriumlib.utils.VinUtils;
@@ -30,10 +30,10 @@ public class VineriumCore extends JavaPlugin {
     private VinCorePlaceholders placeholders;
     private SuffixManager suffixManager;
     private PlayerManager playerManager;
+    private DynamicMobCapManager dynamicMobCapManager;
 
     // Совместимость с другими плагинами
     private boolean CMIEnabled = false;
-    private DiscordSRVManager discordSRVManager = null;
     private DiscordSRVListener discordSRVListener = null;
 
     public static VineriumCore inst() {
@@ -43,10 +43,12 @@ public class VineriumCore extends JavaPlugin {
     @Override
     public void onLoad() {
         plugin = this;
+        Flags.registerFlags();
     }
 
     @Override
     public void onEnable() {
+        Flags.registerHandlers();
         try {
             ResourceUtils.fetchAllResources(this,getFile());
         } catch (IOException e) {
@@ -56,6 +58,7 @@ public class VineriumCore extends JavaPlugin {
         this.configManager = new ConfigManager();
         this.suffixManager = new SuffixManager();
         this.playerManager = new PlayerManager();
+        this.dynamicMobCapManager = new DynamicMobCapManager();
 
         this.configManager.checkConfigs();
 
@@ -76,7 +79,6 @@ public class VineriumCore extends JavaPlugin {
         }
         Plugin discordSRV = Bukkit.getPluginManager().getPlugin("DiscordSRV");
         if (discordSRV != null && discordSRV.isEnabled()) {
-            discordSRVManager = new DiscordSRVManager();
             discordSRVListener = new DiscordSRVListener();
             DiscordSRV.api.subscribe(discordSRVListener);
             VinUtils.sendDebugMessage(0,"DiscordSRV found, compatibility features enabled.");
@@ -92,7 +94,7 @@ public class VineriumCore extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (discordSRVManager != null)
+        if (discordSRVListener != null)
             DiscordSRV.api.unsubscribe(discordSRVListener);
         VinUtils.updateJarFile(this,this.getFile());
     }
@@ -106,9 +108,7 @@ public class VineriumCore extends JavaPlugin {
         VineriumLib.inst().getLangManager().registerLangLines(this,langLines);
 
         playerManager.loadParams(this);
-
-        if (discordSRVManager != null)
-            discordSRVManager.loadDiscordData(this);
+        dynamicMobCapManager.loadParams(this);
 
         long startTime = System.currentTimeMillis();
         long prevTime = startTime;
@@ -117,6 +117,14 @@ public class VineriumCore extends JavaPlugin {
         long time = System.currentTimeMillis();
         getLogger().info("Loaded " + suffixManager.getSuffixes().size() + " suffixes. ("+(time-prevTime)+" ms)");
         prevTime = System.currentTimeMillis();
+
+        VineriumLib.inst().getCustomGUIManager().unregisterGuis(this);
+        VineriumLib.inst().getCustomGUIManager().registerGuis(this);
+
+        if (VineriumLib.inst().getDiscordSRVManager() != null) {
+            VineriumLib.inst().getDiscordSRVManager().unregisterMessageFormats(this);
+            VineriumLib.inst().getDiscordSRVManager().registerMessageFormats(this);
+        }
     }
 
     public String getMainDirectory() {
@@ -143,7 +151,7 @@ public class VineriumCore extends JavaPlugin {
         return CMIEnabled;
     }
 
-    public DiscordSRVManager getDiscordSRVManager() {
-        return discordSRVManager;
+    public DynamicMobCapManager getDynamicMobCapManager() {
+        return dynamicMobCapManager;
     }
 }

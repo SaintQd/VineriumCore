@@ -3,48 +3,46 @@ package org.saintqd.vineriumcore.listeners;
 import com.Zrips.CMI.CMI;
 import com.Zrips.CMI.Containers.CMIVanish;
 import com.Zrips.CMI.Modules.Vanish.VanishAction;
+import com.sk89q.worldguard.LocalPlayer;
+import com.sk89q.worldguard.WorldGuard;
+import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
+import com.sk89q.worldguard.protection.regions.RegionContainer;
 import kotlin.Pair;
 import me.clip.placeholderapi.PlaceholderAPI;
-import net.kyori.adventure.audience.Audience;
-import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.*;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.util.TriState;
-import org.bukkit.Bukkit;
-import org.bukkit.GameMode;
+import org.bukkit.*;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.EntityEvent;
-import org.bukkit.event.entity.ProjectileHitEvent;
+import org.bukkit.event.entity.*;
 import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.player.PlayerGameModeChangeEvent;
-import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.inventory.PrepareAnvilEvent;
+import org.bukkit.event.player.*;
+import org.bukkit.inventory.AnvilInventory;
 import org.bukkit.permissions.PermissionAttachmentInfo;
-import org.bukkit.plugin.RegisteredListener;
 import org.bukkit.potion.PotionEffectType;
+import org.intellij.lang.annotations.RegExp;
 import org.saintqd.vineriumcore.VineriumCore;
 import org.saintqd.vineriumcore.managers.PlayerManager;
 import org.saintqd.vineriumcore.suffix.VinSuffix;
+import org.saintqd.vineriumcore.worldguard.Flags;
 import org.saintqd.vineriumlib.VineriumLib;
 import org.saintqd.vineriumlib.gui.holders.VinGUIHolder;
 import org.saintqd.vineriumlib.managers.VaultManager;
 import org.saintqd.vineriumlib.utils.VinUtils;
 
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Pattern;
 
 public class PlayerListener implements Listener {
 
+    private final HashMap<AnvilInventory, Integer> realMaxRepairCosts = new HashMap<>();
+
     @EventHandler
-    public void onPlayerJoin(final PlayerJoinEvent event) {
+    public void onPlayerJoinMessage(final PlayerJoinEvent event) {
         VaultManager vaultManager = VineriumLib.inst().getVaultManager();
         if (vaultManager == null || vaultManager.getChatProvider() == null) return;
 
@@ -107,7 +105,7 @@ public class PlayerListener implements Listener {
     }
 
     @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
+    public void onPlayerQuitMessage(PlayerQuitEvent event) {
         VaultManager vaultManager = VineriumLib.inst().getVaultManager();
         if (vaultManager == null || vaultManager.getChatProvider() == null) return;
         if (!VineriumCore.inst().getConfig().getBoolean("Messages.Enabled"))
@@ -168,6 +166,8 @@ public class PlayerListener implements Listener {
     public void onPlayerInteract(PlayerInteractEntityEvent event) {
         if (event.getRightClicked() instanceof Player interactedPlayer) {
             if (!VineriumCore.inst().getConfig().getBoolean("Messages.RightClickNickname.Enabled")) return;
+            if (VineriumCore.inst().getConfig().getBoolean("Messages.RightClickNickname.SneakingAllowed")
+                    && event.getPlayer().isSneaking()) return;
             if (!(interactedPlayer.hasPotionEffect(PotionEffectType.INVISIBILITY)
             && VineriumCore.inst().getConfig().getBoolean("Messages.RightClickNickname.HideInvisible"))
             || VineriumCore.inst().getConfig().getStringList("Messages.RightClickNickname.AlwaysShowGamemodes")
@@ -248,5 +248,103 @@ public class PlayerListener implements Listener {
         if ((event.getPlayer().getGameMode() == GameMode.ADVENTURE || event.getPlayer().getGameMode() == GameMode.SURVIVAL)
         && event.getNewGameMode() == GameMode.SPECTATOR)
             event.getPlayer().setFlySpeed(0.1f);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void anvilEvent(PrepareAnvilEvent event) {
+        if (!VineriumCore.inst().getConfig().getBoolean("RepairCostFix.Enabled")) return;
+        if (event.getView().getMaximumRepairCost() != Integer.MAX_VALUE)
+            realMaxRepairCosts.put(event.getInventory(),event.getView().getMaximumRepairCost());
+
+        if (event.getView().getRepairCost() < realMaxRepairCosts.getOrDefault(event.getInventory(),0))
+        {
+            Integer repairCost = realMaxRepairCosts.remove(event.getInventory());
+            if (repairCost != null)
+                event.getView().setMaximumRepairCost(repairCost);
+            return;
+        }
+
+        event.getView().setMaximumRepairCost(Integer.MAX_VALUE);
+        event.getView().setRepairCost(
+                VineriumCore.inst().getConfig().getBoolean("RepairCostFix.Force",false)
+                ? 39
+                : realMaxRepairCosts.getOrDefault(event.getInventory(),2) - 1);
+    }
+
+    @EventHandler
+    public void onPlayerGlide(EntityToggleGlideEvent event) {
+        if (event.getEntity() instanceof Player player) {
+            RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+            LocalPlayer localPlayer = WorldGuardPlugin.inst().wrapPlayer(player);
+            if (!container.createQuery().testState(localPlayer.getLocation(),localPlayer, Flags.GLIDE))
+                event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerDeath(PlayerDeathEvent event) {
+        if (Boolean.FALSE.equals(event.getPlayer().getWorld().getGameRuleValue(GameRule.SHOW_DEATH_MESSAGES))) return;
+        if (!VineriumCore.inst().getConfig().getBoolean("Messages.Death.Enabled",true)) return;
+
+        Component originalDeathMessage = event.deathMessage();
+        if (originalDeathMessage == null) return;
+        String serializedMessage = MiniMessage.miniMessage().serialize(originalDeathMessage);
+        String prefix = VineriumCore.inst().getConfig().getString("Messages.Death.Format","");
+
+        for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+            if (serializedMessage.contains(">"+onlinePlayer.getName()+"\":")) {
+                String playerName = VineriumCore.inst().getConfig().getString("Messages.Death.PlayerName","*")
+                        .replace("*",onlinePlayer.getName());
+                playerName = VineriumLib.inst().isPlaceholderAPIEnabled()
+                        ? PlaceholderAPI.setPlaceholders(onlinePlayer,playerName)
+                        : playerName;
+                serializedMessage = serializedMessage.replace(">"+onlinePlayer.getName()+"\":",">"+playerName+"\":");
+            }
+        }
+        serializedMessage = prefix.replace("*",serializedMessage);
+
+        event.deathMessage(VinUtils.parseString(serializedMessage));
+    }
+
+    @EventHandler
+    public void onAdvancementReceive(PlayerAdvancementDoneEvent event) {
+        if (Boolean.FALSE.equals(event.getPlayer().getWorld().getGameRuleValue(GameRule.ANNOUNCE_ADVANCEMENTS))) return;
+        if (!VineriumCore.inst().getConfig().getBoolean("Messages.Advancement.Enabled",true)) return;
+
+        List<String> showTypes = VineriumCore.inst().getConfig().getStringList("Messages.Advancement.ShowTypes");
+        if (!VineriumCore.inst().getConfig().getStringList("Messages.Advancement.AlwaysShowNamespaces")
+                .contains(event.getAdvancement().key().namespace())) {
+            if (event.getAdvancement().getDisplay() != null &&
+                    !showTypes.contains(event.getAdvancement().getDisplay().frame().name())) {
+                event.message(null);
+                return;
+            }
+        }
+
+        Component originalMessage = event.message();
+        if (originalMessage == null) return;
+        String serializedMessage = MiniMessage.miniMessage().serialize(originalMessage);
+        String prefix = VineriumCore.inst().getConfig().getString("Messages.Advancement.Format","");
+
+        String playerName = VineriumCore.inst().getConfig().getString("Messages.Advancement.PlayerName","*")
+                .replace("*",event.getPlayer().getName());
+        playerName = VineriumLib.inst().isPlaceholderAPIEnabled()
+                ? PlaceholderAPI.setPlaceholders(event.getPlayer(),playerName)
+                : playerName;
+        serializedMessage = serializedMessage.replace(">"+event.getPlayer().getName()+"\":",">"+playerName+"\":");
+        serializedMessage = prefix.replace("*",serializedMessage);
+        event.message(VinUtils.parseString(serializedMessage));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerJoinMobCap(PlayerJoinEvent event) {
+        if (!VineriumCore.inst().getConfig().getBoolean("DynamicMobCaps.Enabled")) return;
+        VineriumCore.inst().getDynamicMobCapManager().updateWorldCaps(Bukkit.getOnlinePlayers().size());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerQuitMobCap(PlayerQuitEvent event) {
+        if (!VineriumCore.inst().getConfig().getBoolean("DynamicMobCaps.Enabled")) return;
+        VineriumCore.inst().getDynamicMobCapManager().updateWorldCaps(Bukkit.getOnlinePlayers().size() - 1);
     }
 }

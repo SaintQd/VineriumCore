@@ -15,6 +15,7 @@ repositories {
     maven(url = "https://repo.extendedclip.com/content/repositories/placeholderapi/")
     maven(url = "https://jitpack.io")
     maven(url = "https://nexus.scarsz.me/content/groups/public/")
+    maven(url = "https://maven.enginehub.org/repo/")
 }
 
 dependencies {
@@ -24,6 +25,7 @@ dependencies {
     compileOnly("com.github.Zrips:CMI-API:9.7.14.3")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
     compileOnly("com.discordsrv:discordsrv:1.30.2")
+    compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.14-SNAPSHOT")
     implementation(kotlin("stdlib-jdk8"))
 }
 

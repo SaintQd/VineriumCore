@@ -58,14 +58,13 @@ public class VillagerListener implements Listener {
         Material interactMaterial = Material.valueOf(VineriumCore.inst().getConfig()
                 .getString("VillagerOptimizer.InteractMaterial",Material.SHEARS.name()).toUpperCase());
         @Subst("block.chain.hit") String interactSound = VineriumCore.inst().getConfig()
-                .getString("VillagerOptimizer.InteractSound", "entity.villager.hurt");
+                .getString("VillagerOptimizer.InteractSound", null);
 
         if (villager.isAware()) {
             if (event.getPlayer().getInventory().getItemInMainHand().getType() == interactMaterial) {
                 villager.setAware(false);
-                org.bukkit.Sound sound = Registry.SOUNDS.get(Key.key(interactSound));
-                if (sound != null)
-                    villager.getWorld().playSound(villager.getLocation(),sound,SoundCategory.NEUTRAL,1f,1f);
+                if (interactSound != null)
+                    villager.getWorld().playSound(villager.getLocation(),interactSound,SoundCategory.NEUTRAL,1f,1f);
                 event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"villagerOptimizerInteractOff"));
 
                 event.setCancelled(true);
@@ -84,9 +83,8 @@ public class VillagerListener implements Listener {
         else {
             if (event.getPlayer().getInventory().getItemInMainHand().getType() == interactMaterial) {
                 villager.setAware(true);
-                org.bukkit.Sound sound = Registry.SOUNDS.get(Key.key(interactSound));
-                if (sound != null)
-                    villager.getWorld().playSound(villager.getLocation(),sound,SoundCategory.NEUTRAL, 1f,1f);
+                if (interactSound != null)
+                    villager.getWorld().playSound(villager.getLocation(),interactSound,SoundCategory.NEUTRAL, 1f,1f);
                 event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"villagerOptimizerInteractOn"));
 
                 event.setCancelled(true);

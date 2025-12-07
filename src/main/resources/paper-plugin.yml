@@ -3,7 +3,7 @@ version: '1.0'
 author: SaintQd
 main: org.saintqd.vineriumcore.VineriumCore
 description: VineriumCore Plugin
-api-version: '1.21.4'
+api-version: '1.21.8'
 dependencies:
   server:
     VineriumLib:
@@ -19,5 +19,8 @@ dependencies:
       load: BEFORE
       required: false
     DiscordSRV:
+      load: BEFORE
+      required: false
+    WorldGuard:
       load: BEFORE
       required: false

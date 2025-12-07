@@ -2,9 +2,13 @@ name: VineriumCore
 version: 1.0
 author: SaintQd
 main: org.saintqd.vineriumcore.VineriumCore
-api-version: 1.21.4
+api-version: 1.21.8
 depend: [VineriumLib]
-softdepend: [PlaceholderAPI,CMI,DiscordSRV]
+softdepend:
+  - PlaceholderAPI
+  - CMI
+  - DiscordSRV
+  - WorldGuard
 permissions:
   vineriumcore.admin:
     description: Access to admin commands.
