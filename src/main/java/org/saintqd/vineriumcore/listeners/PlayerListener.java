@@ -24,7 +24,6 @@ import org.bukkit.event.player.*;
 import org.bukkit.inventory.AnvilInventory;
 import org.bukkit.permissions.PermissionAttachmentInfo;
 import org.bukkit.potion.PotionEffectType;
-import org.intellij.lang.annotations.RegExp;
 import org.saintqd.vineriumcore.VineriumCore;
 import org.saintqd.vineriumcore.managers.PlayerManager;
 import org.saintqd.vineriumcore.suffix.VinSuffix;
@@ -276,8 +275,10 @@ public class PlayerListener implements Listener {
         if (event.getEntity() instanceof Player player) {
             RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
             LocalPlayer localPlayer = WorldGuardPlugin.inst().wrapPlayer(player);
-            if (!container.createQuery().testState(localPlayer.getLocation(),localPlayer, Flags.GLIDE))
+            if (!container.createQuery().testState(localPlayer.getLocation(),localPlayer, Flags.GLIDE)) {
+                player.setGliding(false);
                 event.setCancelled(true);
+            }
         }
     }
 
