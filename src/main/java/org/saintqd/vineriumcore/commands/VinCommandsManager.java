@@ -1,15 +1,19 @@
 package org.saintqd.vineriumcore.commands;
 
+import com.Zrips.CMI.CMI;
+import com.Zrips.CMI.Containers.CMIUser;
+import com.Zrips.CMI.Modules.PlayTime.PlayTimeManager;
 import com.mojang.brigadier.Command;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 import io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver;
 import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
-import kotlin.Pair;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.permissions.PermissionAttachmentInfo;
@@ -23,6 +27,7 @@ import org.saintqd.vineriumlib.utils.VinUtils;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 
 public class VinCommandsManager {
@@ -119,8 +124,36 @@ public class VinCommandsManager {
                                             })
                                     )
                             )
+                            .then(Commands.literal("savedata")
+                                    .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.admin"))
+                                    .executes(ctx -> {
+                                        saveDataCommand(ctx.getSource().getSender());
+                                        return Command.SINGLE_SUCCESS;
+                                    })
+                            )
+                            .then(Commands.literal("hint")
+                                    .executes(ctx -> {
+                                        sendHintCommand(ctx.getSource().getSender(),-1,null);
+                                        return Command.SINGLE_SUCCESS;
+                                    })
+                                    .then(Commands.argument("index", IntegerArgumentType.integer())
+                                            .executes(ctx -> {
+                                                sendHintCommand(ctx.getSource().getSender(),ctx.getArgument("index", Integer.class),null);
+                                                return Command.SINGLE_SUCCESS;
+                                            })
+                                            .then(Commands.argument("player", ArgumentTypes.player())
+                                                    .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.admin"))
+                                                    .executes(ctx -> {
+                                                        sendHintCommand(
+                                                                ctx.getSource().getSender(),
+                                                                ctx.getLastChild().getArgument("index", Integer.class),
+                                                                ctx.getArgument("player",PlayerSelectorArgumentResolver.class).resolve(ctx.getSource()).getFirst());
+                                                        return Command.SINGLE_SUCCESS;
+                                                    })
+                                            )
+                                    )
+                            )
                             .then(SuffixCommandsManager.getSuffixCommands())
-                            .then(DiscordCommandsManager.getDiscordCommands())
                             .build(),
                     "Основная команда."
             );
@@ -132,6 +165,11 @@ public class VinCommandsManager {
         VineriumCore.inst().loadData();
         if (sender instanceof Player)
             sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"reloadMessage"));
+    }
+
+    private static void saveDataCommand(CommandSender sender) {
+        VineriumCore.inst().saveData();
+        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"commandSaveData"));
     }
 
     private static void setJoinMessageCommand(CommandSender sender, String message, Player player) {
@@ -249,8 +287,8 @@ public class VinCommandsManager {
         player = VinUtils.checkForPlayerPresent(sender, player);
         PlayerManager playerManager = VineriumCore.inst().getPlayerManager();
 
-        HashMap<Player, Pair<String,Long>> timers = playerManager.getTimers().getOrDefault("pvpToggleCooldown",new HashMap<>());
-        Pair<String,Long> timerVariable = timers.getOrDefault(player,new Pair<>(null,0L));
+        HashMap<Player, ImmutablePair<String,Long>> timers = playerManager.getTimers().getOrDefault("pvpToggleCooldown",new HashMap<>());
+        ImmutablePair<String,Long> timerVariable = timers.getOrDefault(player,new ImmutablePair<>(null,0L));
 
         if (sender == player && !player.hasPermission("vineriumcore.admin")) {
             double minRadiusWithoutPlayers = VineriumCore.inst().getConfig().getDouble("PvPMode.MinRadiusWithoutPlayers",-1);
@@ -258,8 +296,8 @@ public class VinCommandsManager {
                 player.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"pvpMinRadiusWithoutPlayers",Double.toString(minRadiusWithoutPlayers)));
                 return;
             }
-            if (timerVariable.getSecond() > VinUtils.getCurrentTick()) {
-                long remainingTime = (timerVariable.getSecond() - VinUtils.getCurrentTick()) / 20;
+            if (timerVariable.getRight() > VinUtils.getCurrentTick()) {
+                long remainingTime = (timerVariable.getRight() - VinUtils.getCurrentTick()) / 20;
                 player.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"pvpToggleCooldown",Long.toString(remainingTime)));
                 return;
             }
@@ -276,9 +314,28 @@ public class VinCommandsManager {
                 player.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"pvpModeOnForPlayer", player.getName()));
             player.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"pvpModeOn"));
         }
-        timerVariable = new Pair<>(null,VinUtils.getCurrentTick() + VineriumCore.inst().getConfig()
+        timerVariable = new ImmutablePair<>(null,VinUtils.getCurrentTick() + VineriumCore.inst().getConfig()
                 .getLong("TimersCooldown.pvpToggleCooldown",6000L));
         timers.put(player,timerVariable);
         playerManager.getTimers().put("pvpToggleCooldown",timers);
+    }
+
+    private static void sendHintCommand(CommandSender sender, int hintIndex, Player player) {
+        if (hintIndex < 0)
+            hintIndex = ThreadLocalRandom.current().nextInt(0,VineriumCore.inst().getHintManager().getHints().size());
+        if (hintIndex >= VineriumCore.inst().getHintManager().getHints().size()) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"hintDoesNotExist"));
+            return;
+        }
+        String hint = VineriumCore.inst().getHintManager().getHints().get(hintIndex);
+        String hintPrefix = VineriumLib.inst().getLangManager().getLangLines(
+                VineriumCore.inst()).get("hintPrefix").replace("{1}",Integer.toString(hintIndex));
+        String finalHint = hintPrefix + hint;
+        if (player != null) {
+            player.sendRichMessage(finalHint);
+        }
+        else {
+            sender.sendRichMessage(finalHint);
+        }
     }
 }

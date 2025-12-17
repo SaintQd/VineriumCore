@@ -9,6 +9,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.inventory.TradeSelectEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.MerchantRecipe;
@@ -70,15 +73,6 @@ public class VillagerListener implements Listener {
                 event.setCancelled(true);
                 return;
             }
-            else {
-                if (VineriumCore.inst().getConfig()
-                        .getBoolean("VillagerOptimizer.DisableUnoptimizedTrades",true)) {
-                    event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "villagerOptimizerInteractHint"));
-
-                    event.setCancelled(true);
-                    return;
-                }
-            }
         }
         else {
             if (event.getPlayer().getInventory().getItemInMainHand().getType() == interactMaterial) {
@@ -98,6 +92,30 @@ public class VillagerListener implements Listener {
                 }
                 refreshTrades(villager, event.getPlayer());
             }
+        }
+    }
+
+    @EventHandler
+    public void onVillagerInventoryClick(InventoryClickEvent event) {
+        if (event.getInventory().getType() != InventoryType.MERCHANT) return;
+        if (!(event.getInventory().getHolder() instanceof Villager villager)) return;
+        if (!VineriumCore.inst().getConfig().getBoolean("VillagerOptimizer.Enabled", true)) return;
+        if (villager.isAware() && VineriumCore.inst().getConfig()
+                .getBoolean("VillagerOptimizer.DisableUnoptimizedTrades",true)) {
+            event.getWhoClicked().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "villagerOptimizerInteractHint"));
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onVillagerTradeSelect(TradeSelectEvent event) {
+        if (event.getInventory().getType() != InventoryType.MERCHANT) return;
+        if (!(event.getInventory().getHolder() instanceof Villager villager)) return;
+        if (!VineriumCore.inst().getConfig().getBoolean("VillagerOptimizer.Enabled", true)) return;
+        if (villager.isAware() && VineriumCore.inst().getConfig()
+                .getBoolean("VillagerOptimizer.DisableUnoptimizedTrades",true)) {
+            event.getWhoClicked().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "villagerOptimizerInteractHint"));
+            event.setCancelled(true);
         }
     }
 

@@ -1,6 +1,6 @@
 package org.saintqd.vineriumcore.managers;
 
-import kotlin.Pair;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -13,7 +13,7 @@ public class PlayerManager {
     private String pvpPlaceholder = "";
     private final HashSet<Player> pvpModePlayers = new HashSet<>();
 
-    private final HashMap<String, HashMap<Player, Pair<String,Long>>> timers = new HashMap<>();
+    private final HashMap<String, HashMap<Player, ImmutablePair<String,Long>>> timers = new HashMap<>();
 
     public void loadParams(Plugin plugin) {
         pvpModeEnabled = plugin.getConfig().getBoolean("PvPMode.Enabled");
@@ -24,7 +24,7 @@ public class PlayerManager {
         return pvpModePlayers;
     }
 
-    public HashMap<String, HashMap<Player, Pair<String, Long>>> getTimers() {
+    public HashMap<String, HashMap<Player, ImmutablePair<String, Long>>> getTimers() {
         return timers;
     }
 

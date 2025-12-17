@@ -11,7 +11,7 @@ import java.util.List;
 public class ConfigManager {
 
     public void checkConfigs() {
-        File suffixFile = new File(VineriumCore.inst().getMainDirectory()+"Suffixes.yml");
+        File suffixFile = new File(VineriumCore.inst().getDataFolder().getPath() + File.separator + "Suffixes.yml");
         File parent = suffixFile.getParentFile();
         if (parent != null && !parent.exists() && !parent.mkdirs()) {
             VinUtils.sendDebugMessage(0,"<red>Couldn't create suffix config!");

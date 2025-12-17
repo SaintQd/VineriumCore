@@ -1,18 +1,13 @@
 package org.saintqd.vineriumcore;
 
-import github.scarsz.discordsrv.DiscordSRV;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.saintqd.vineriumcore.commands.VinCommandsManager;
 import org.saintqd.vineriumcore.listeners.CMIListener;
-import org.saintqd.vineriumcore.listeners.DiscordSRVListener;
 import org.saintqd.vineriumcore.listeners.PlayerListener;
 import org.saintqd.vineriumcore.listeners.VillagerListener;
-import org.saintqd.vineriumcore.managers.ConfigManager;
-import org.saintqd.vineriumcore.managers.DynamicMobCapManager;
-import org.saintqd.vineriumcore.managers.PlayerManager;
-import org.saintqd.vineriumcore.managers.SuffixManager;
+import org.saintqd.vineriumcore.managers.*;
 import org.saintqd.vineriumcore.placeholders.VinCorePlaceholders;
 import org.saintqd.vineriumcore.worldguard.Flags;
 import org.saintqd.vineriumlib.VineriumLib;
@@ -31,10 +26,10 @@ public class VineriumCore extends JavaPlugin {
     private SuffixManager suffixManager;
     private PlayerManager playerManager;
     private DynamicMobCapManager dynamicMobCapManager;
+    private HintManager hintManager;
 
     // Совместимость с другими плагинами
     private boolean CMIEnabled = false;
-    private DiscordSRVListener discordSRVListener = null;
 
     public static VineriumCore inst() {
         return plugin;
@@ -59,6 +54,7 @@ public class VineriumCore extends JavaPlugin {
         this.suffixManager = new SuffixManager();
         this.playerManager = new PlayerManager();
         this.dynamicMobCapManager = new DynamicMobCapManager();
+        this.hintManager = new HintManager();
 
         this.configManager.checkConfigs();
 
@@ -77,12 +73,6 @@ public class VineriumCore extends JavaPlugin {
             getServer().getPluginManager().registerEvents(new CMIListener(), this);
             VinUtils.sendDebugMessage(0,"CMI found, compatibility features enabled.");
         }
-        Plugin discordSRV = Bukkit.getPluginManager().getPlugin("DiscordSRV");
-        if (discordSRV != null && discordSRV.isEnabled()) {
-            discordSRVListener = new DiscordSRVListener();
-            DiscordSRV.api.subscribe(discordSRVListener);
-            VinUtils.sendDebugMessage(0,"DiscordSRV found, compatibility features enabled.");
-        }
 
         loadData();
 
@@ -90,13 +80,15 @@ public class VineriumCore extends JavaPlugin {
 
         getServer().getPluginManager().registerEvents(new PlayerListener(), this);
         getServer().getPluginManager().registerEvents(new VillagerListener(), this);
+
+        //Создаем задачу регулярного сохранения данных раз в полчаса
+        getServer().getScheduler().scheduleSyncRepeatingTask(this, this::saveData, 36000L, 36000L);
     }
 
     @Override
     public void onDisable() {
-        if (discordSRVListener != null)
-            DiscordSRV.api.unsubscribe(discordSRVListener);
         VinUtils.updateJarFile(this,this.getFile());
+        saveData();
     }
 
     public void loadData() {
@@ -110,29 +102,37 @@ public class VineriumCore extends JavaPlugin {
         playerManager.loadParams(this);
         dynamicMobCapManager.loadParams(this);
 
-        long startTime = System.currentTimeMillis();
-        long prevTime = startTime;
+        long prevTime = System.currentTimeMillis();
 
         suffixManager.loadSuffixes(this);
         long time = System.currentTimeMillis();
         getLogger().info("Loaded " + suffixManager.getSuffixes().size() + " suffixes. ("+(time-prevTime)+" ms)");
+        getLogger().info("Loaded " + suffixManager.getCommunitySuffixes().size() + " community suffixes. ("+(time-prevTime)+" ms)");
         prevTime = System.currentTimeMillis();
+
+        hintManager.loadHints(this);
+        time = System.currentTimeMillis();
+        getLogger().info("Loaded " + hintManager.getHints().size() + " hints. ("+(time-prevTime)+" ms)");
+        prevTime = System.currentTimeMillis();
+
+        hintManager.setupStarterHintTask(this);
 
         VineriumLib.inst().getCustomGUIManager().unregisterGuis(this);
         VineriumLib.inst().getCustomGUIManager().registerGuis(this);
-
-        if (VineriumLib.inst().getDiscordSRVManager() != null) {
-            VineriumLib.inst().getDiscordSRVManager().unregisterMessageFormats(this);
-            VineriumLib.inst().getDiscordSRVManager().registerMessageFormats(this);
-        }
     }
 
-    public String getMainDirectory() {
-        return getDataFolder().getPath() + File.separator;
+    public void saveData() {
+        VinUtils.sendDebugMessage(0,"Saving community suffixes data...");
+        suffixManager.saveCommunitySuffixes();
+        VinUtils.sendDebugMessage(0,"Saved "+suffixManager.getCommunitySuffixes().size()+" community suffixes.");
     }
 
     public ConfigManager getConfigManager() {
         return configManager;
+    }
+
+    public HintManager getHintManager() {
+        return hintManager;
     }
 
     public SuffixManager getSuffixManager() {

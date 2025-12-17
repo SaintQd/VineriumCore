@@ -45,6 +45,10 @@ VillagerOptimizer:
   RestockInterval: 1000
   RestockSound: entity.villager.celebrate
   InteractSound: entity.villager.hurt
+StarterHints:
+  Join: -1
+  Timer: 24000
+  MaxPlaytime: 18000000
 DynamicMobCaps:
   Enabled: true
   Categories:
@@ -99,35 +103,12 @@ TimersCooldown:
   entityNotEnabledPvp: 200
   damagerNotEnabledPvp: 200
   pvpToggleCooldown: 6000
-RepairCostFix:
-  Enabled: true
-  Force: false
-DiscordSRV:
-  MessageFormats:
-    donate_purchase_message:
-      Webhook:
-        Enabled: false
-        AvatarUrl: '%botavatarurl%'
-        Name: '%botname%'
-      Content: ''
-      Embed:
-        Enabled: true
-        Color: '#999900'
-        Author:
-          ImageUrl: '%embedavatarurl%'
-          Name: ᴩᴜʀᴄʜᴀꜱᴇ
-          Url: ''
-        ThumbnailUrl: ''
-        Title:
-          Text: ''
-          Url: ''
-        Description: |-
-          ▸ Игрок %username% приобрёл услугу: {1}
-          ▸ Стоимость: {2}
-          ▸ Время: {time}
-        Fields: []
-        ImageUrl: ''
-        Footer:
-          Text: ''
-          IconUrl: ''
-        Timestamp: false
+Tweaks:
+  RepairCostFix:
+    Enabled: true
+    Force: false
+  GrindstoneDisenchant: true
+  AgeLock:
+    Enabled: true
+    Item: POISONOUS_POTATO
+    RemoveItem: true

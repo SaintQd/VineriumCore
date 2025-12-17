@@ -1,28 +1,37 @@
 package org.saintqd.vineriumcore.listeners;
 
 import com.Zrips.CMI.CMI;
+import com.Zrips.CMI.Containers.CMIUser;
 import com.Zrips.CMI.Containers.CMIVanish;
 import com.Zrips.CMI.Modules.Vanish.VanishAction;
 import com.sk89q.worldguard.LocalPlayer;
 import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
-import kotlin.Pair;
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.ItemEnchantments;
 import me.clip.placeholderapi.PlaceholderAPI;
+import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.*;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.util.TriState;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.bukkit.*;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.*;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
+import org.bukkit.event.inventory.PrepareGrindstoneEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.inventory.AnvilInventory;
+import org.bukkit.inventory.GrindstoneInventory;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.permissions.PermissionAttachmentInfo;
+import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.saintqd.vineriumcore.VineriumCore;
 import org.saintqd.vineriumcore.managers.PlayerManager;
@@ -42,16 +51,20 @@ public class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerJoinMessage(final PlayerJoinEvent event) {
-        VaultManager vaultManager = VineriumLib.inst().getVaultManager();
-        if (vaultManager == null || vaultManager.getChatProvider() == null) return;
+        VineriumCore.inst().getSuffixManager().checkSuffixPermission(event.getPlayer());
 
-        String suffixSymbol = vaultManager.getChatProvider().getPlayerSuffix(event.getPlayer()).replace(" ","");
-        String suffixName = VineriumCore.inst().getSuffixManager().getSuffixSymbolsToNames().get(suffixSymbol);
-        if (suffixName != null) {
-            VinSuffix suffix = VineriumCore.inst().getSuffixManager().getSuffixes().get(suffixName);
-            if (!event.getPlayer().hasPermission(suffix.getPermission())) {
-                vaultManager.getChatProvider().setPlayerSuffix(event.getPlayer(), null);
-                event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "suffixNoPermissionRemoved"));
+        int hintIndex = VineriumCore.inst().getConfig().getInt("StarterHints.Join",-2);
+        if (hintIndex > -2 && event.getPlayer().permissionValue("vineriumcore.disablehints") != TriState.TRUE) {
+            long maxPlaytime = VineriumCore.inst().getConfig().getLong("StarterHints.MaxPlaytime",18000000);
+            boolean playTimeCheck = true;
+            CMIUser user = CMI.getInstance().getPlayerManager().getUser(event.getPlayer());
+            if (user.getTotalPlayTime() > maxPlaytime)
+                playTimeCheck = false;
+            if (playTimeCheck) {
+                if (hintIndex == -1 || hintIndex >= VineriumCore.inst().getHintManager().getHints().size())
+                    VineriumCore.inst().getHintManager().sendStarterHint(Audience.audience(Bukkit.getOnlinePlayers()));
+                else
+                    VineriumCore.inst().getHintManager().sendStarterHint(Audience.audience(Bukkit.getOnlinePlayers()), hintIndex);
             }
         }
 
@@ -179,6 +192,17 @@ public class PlayerListener implements Listener {
                 event.getPlayer().sendActionBar(VinUtils.parseString(messageFormat));
             }
         }
+        if (event.getRightClicked() instanceof Breedable breedable) {
+            if (!VineriumCore.inst().getConfig().getBoolean("Tweaks.AgeLock.Enabled",true)) return;
+            if (breedable.getAgeLock() || breedable.isAdult()) return;
+            ItemStack handItem = event.getPlayer().getInventory().getItemInMainHand();
+            if (handItem.getType() !=
+                    Material.valueOf(VineriumCore.inst().getConfig().getString("Tweaks.AgeLock.Item",Material.POISONOUS_POTATO.name()))) return;
+            if (VineriumCore.inst().getConfig().getBoolean("Tweaks.AgeLock.RemoveItem",true) && event.getPlayer().getGameMode() != GameMode.CREATIVE)
+                handItem.setAmount(handItem.getAmount() - 1);
+            breedable.setAgeLock(true);
+            breedable.addPotionEffect(new PotionEffect(PotionEffectType.POISON,40,1,false,true));
+        }
     }
 
     @EventHandler
@@ -213,10 +237,10 @@ public class PlayerListener implements Listener {
                 return;
             if (!playerManager.getPvpModePlayers().contains(entityPlayer)) {
                 event.setCancelled(true);
-                HashMap<Player, Pair<String,Long>> timers = playerManager.getTimers().getOrDefault("entityNotEnabledPvp",new HashMap<>());
-                Pair<String,Long> damagerVariable = timers.getOrDefault(damagerPlayer,new Pair<>(null,0L));
-                if (damagerVariable.getSecond() < VinUtils.getCurrentTick()) {
-                    damagerVariable = new Pair<>(null,VinUtils.getCurrentTick() +
+                HashMap<Player, ImmutablePair<String,Long>> timers = playerManager.getTimers().getOrDefault("entityNotEnabledPvp",new HashMap<>());
+                ImmutablePair<String,Long> damagerVariable = timers.getOrDefault(damagerPlayer,new ImmutablePair<>(null,0L));
+                if (damagerVariable.getRight() < VinUtils.getCurrentTick()) {
+                    damagerVariable = new ImmutablePair<>(null,VinUtils.getCurrentTick() +
                             VineriumCore.inst().getConfig().getLong("TimersCooldown.entityNotEnabledPvp",200L));
                     timers.put(damagerPlayer,damagerVariable);
                     playerManager.getTimers().put("entityNotEnabledPvp",timers);
@@ -226,10 +250,10 @@ public class PlayerListener implements Listener {
             }
             if (!playerManager.getPvpModePlayers().contains(damagerPlayer)) {
                 event.setCancelled(true);
-                HashMap<Player, Pair<String,Long>> timers = playerManager.getTimers().getOrDefault("damagerNotEnabledPvp",new HashMap<>());
-                Pair<String,Long> damagerVariable = timers.getOrDefault(damagerPlayer,new Pair<>(null,0L));
-                if (damagerVariable.getSecond() < VinUtils.getCurrentTick()) {
-                    damagerVariable = new Pair<>(null,VinUtils.getCurrentTick() +
+                HashMap<Player, ImmutablePair<String,Long>> timers = playerManager.getTimers().getOrDefault("damagerNotEnabledPvp",new HashMap<>());
+                ImmutablePair<String,Long> damagerVariable = timers.getOrDefault(damagerPlayer,new ImmutablePair<>(null,0L));
+                if (damagerVariable.getRight() < VinUtils.getCurrentTick()) {
+                    damagerVariable = new ImmutablePair<>(null,VinUtils.getCurrentTick() +
                             VineriumCore.inst().getConfig().getLong("TimersCooldown.damagerNotEnabledPvp",200L));
                     timers.put(damagerPlayer,damagerVariable);
                     playerManager.getTimers().put("damagerNotEnabledPvp",timers);
@@ -251,7 +275,7 @@ public class PlayerListener implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void anvilEvent(PrepareAnvilEvent event) {
-        if (!VineriumCore.inst().getConfig().getBoolean("RepairCostFix.Enabled")) return;
+        if (!VineriumCore.inst().getConfig().getBoolean("Tweaks.RepairCostFix.Enabled")) return;
         if (event.getView().getMaximumRepairCost() != Integer.MAX_VALUE)
             realMaxRepairCosts.put(event.getInventory(),event.getView().getMaximumRepairCost());
 
@@ -265,7 +289,7 @@ public class PlayerListener implements Listener {
 
         event.getView().setMaximumRepairCost(Integer.MAX_VALUE);
         event.getView().setRepairCost(
-                VineriumCore.inst().getConfig().getBoolean("RepairCostFix.Force",false)
+                VineriumCore.inst().getConfig().getBoolean("Tweaks.RepairCostFix.Force",false)
                 ? 39
                 : realMaxRepairCosts.getOrDefault(event.getInventory(),2) - 1);
     }
@@ -277,6 +301,12 @@ public class PlayerListener implements Listener {
             LocalPlayer localPlayer = WorldGuardPlugin.inst().wrapPlayer(player);
             if (!container.createQuery().testState(localPlayer.getLocation(),localPlayer, Flags.GLIDE)) {
                 player.setGliding(false);
+                ItemStack chestplate = player.getInventory().getChestplate();
+                if (chestplate != null && chestplate.getType() == Material.ELYTRA) {
+                    player.getWorld().strikeLightningEffect(player.getLocation());
+                    player.playSound(player,Sound.ENTITY_ITEM_BREAK,SoundCategory.PLAYERS,1f,1f);
+                    chestplate.setData(DataComponentTypes.DAMAGE,chestplate.getData(DataComponentTypes.MAX_DAMAGE));
+                }
                 event.setCancelled(true);
             }
         }
@@ -347,5 +377,27 @@ public class PlayerListener implements Listener {
     public void onPlayerQuitMobCap(PlayerQuitEvent event) {
         if (!VineriumCore.inst().getConfig().getBoolean("DynamicMobCaps.Enabled")) return;
         VineriumCore.inst().getDynamicMobCapManager().updateWorldCaps(Bukkit.getOnlinePlayers().size() - 1);
+    }
+
+    @EventHandler
+    public void onGrindstoneClick(InventoryClickEvent event) {
+        if (!(event.getClickedInventory() instanceof GrindstoneInventory grindstoneInventory)) return;
+        if (!VineriumCore.inst().getConfig().getBoolean("Tweaks.GrindstoneDisenchant",true)) return;
+        if (!event.getWhoClicked().hasPermission("vineriumcore.grindstonedisenchant")) return;
+        ItemStack itemOnCursor = event.getWhoClicked().getItemOnCursor();
+        if (event.getSlot() == 1 && itemOnCursor.getType() == Material.BOOK && grindstoneInventory.getLowerItem() == null) {
+            grindstoneInventory.setLowerItem(itemOnCursor.clone());
+            grindstoneInventory.getLowerItem().setAmount(1);
+            event.getWhoClicked().getItemOnCursor().setAmount(itemOnCursor.getAmount() - 1);
+            if (grindstoneInventory.getUpperItem() != null && grindstoneInventory.getResult() == null) {
+                ItemStack bookItem = ItemStack.of(Material.ENCHANTED_BOOK);
+                ItemStack upperItem = grindstoneInventory.getUpperItem();
+                ItemEnchantments itemEnchantments = upperItem.getData(DataComponentTypes.ENCHANTMENTS);
+                if (itemEnchantments.enchantments().isEmpty())
+                    return;
+                bookItem.setData(DataComponentTypes.STORED_ENCHANTMENTS,itemEnchantments);
+                grindstoneInventory.setResult(bookItem);
+            }
+        }
     }
 }

@@ -1,5 +1,4 @@
 plugins {
-    kotlin("jvm") version "2.1.0"
     id("java")
 }
 
@@ -26,7 +25,6 @@ dependencies {
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
     compileOnly("com.discordsrv:discordsrv:1.30.2")
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.14-SNAPSHOT")
-    implementation(kotlin("stdlib-jdk8"))
 }
 
 tasks.test {
@@ -48,7 +46,4 @@ tasks.withType<Jar> {
 }
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(21))
-}
-kotlin {
-    jvmToolchain(21)
 }
