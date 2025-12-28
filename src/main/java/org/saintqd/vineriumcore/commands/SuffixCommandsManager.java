@@ -192,7 +192,7 @@ public class SuffixCommandsManager {
         suffixGUI.setMainMenu(1);
         suffixGUI.openInventory();
         if (sender != player)
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixMenuOpenedForPlayer", player.getName()));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffix_menu_opened_for_player", player.getName()));
     }
 
     private static void setSuffixCommand(CommandSender sender, String suffixName, Player player) {
@@ -200,48 +200,48 @@ public class SuffixCommandsManager {
         player = VinUtils.checkForPlayerPresent(sender,player);
         if (player == null) return;
         if (suffixName == null) {
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixCommandUsage"));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffix_command_usage"));
             return;
         }
         VinSuffix suffix = VineriumCore.inst().getSuffixManager().getSuffixes().get(suffixName);
         if (suffix == null) {
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixDoesntExist",suffixName));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffix_does_not_exist",suffixName));
             return;
         }
-        suffix.changeSuffix(sender,player);
+        VineriumCore.inst().getSuffixManager().changeSuffix(sender,player,suffix);
     }
 
     private static void clearSuffixCommand(CommandSender sender, Player player) {
 
         player = VinUtils.checkForPlayerPresent(sender,player);
         if (player == null) return;
-        VinSuffix.clearSuffix(sender,player);
+        VineriumCore.inst().getSuffixManager().clearSuffix(sender,player);
     }
 
     private static void communitySuffixListCommand(CommandSender sender, String suffixName) {
 
         SuffixManager suffixManager = VineriumCore.inst().getSuffixManager();
         if (!suffixManager.getCommunitySuffixes().containsKey(suffixName)) {
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixDoesntExist",suffixName));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_does_not_exist",suffixName));
             return;
         }
         VinSuffix suffix = suffixManager.getSuffixes().get(suffixName);
         CommunitySuffix communitySuffix = suffixManager.getCommunitySuffixes().get(suffixName);
         if (!sender.hasPermission(communitySuffix.getPermission())) {
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixNoPermission"));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_no_permission"));
             return;
         }
         int index = 1;
-        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixListMessage",
-                suffix.getSymbol(),suffixName,Integer.toString(communitySuffix.getUsers().size()),Integer.toString(communitySuffix.getSuffixLimit())));
+        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_list_message",
+                suffix.getParsedPlaceholder(),suffixName,Integer.toString(communitySuffix.getUsers().size()),Integer.toString(communitySuffix.getSuffixLimit())));
         for (String username : communitySuffix.getUsers()) {
             Player onlinePlayer = Bukkit.getPlayer(username);
             if (onlinePlayer != null)
                 sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),
-                        "communitySuffixListOnlineMessageFormat",Integer.toString(index),username));
+                        "community_suffix_list_online_message_format",Integer.toString(index),username));
             else
                 sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),
-                    "communitySuffixListMessageFormat",Integer.toString(index),username));
+                    "community_suffix_list_message_format",Integer.toString(index),username));
             index++;
         }
     }
@@ -250,48 +250,48 @@ public class SuffixCommandsManager {
 
         SuffixManager suffixManager = VineriumCore.inst().getSuffixManager();
         if (!suffixManager.getCommunitySuffixes().containsKey(suffixName)) {
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixDoesntExist",suffixName));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_does_not_exist",suffixName));
             return;
         }
         VinSuffix suffix = suffixManager.getSuffixes().get(suffixName);
         CommunitySuffix communitySuffix = suffixManager.getCommunitySuffixes().get(suffixName);
         if (!sender.hasPermission(communitySuffix.getPermission())) {
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixNoPermission"));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_no_permission"));
             return;
         }
         if (!communitySuffix.isPossibleToAdd()) {
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixOverLimit"));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_over_limit"));
             return;
         }
         OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
         if (!offlinePlayer.hasPlayedBefore()) {
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixPlayerNotFound",playerName));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_player_not_found",playerName));
             return;
         }
         communitySuffix.getUsers().add(playerName);
         if (VineriumLib.inst().getVaultManager() != null && VineriumLib.inst().getVaultManager().getPermissionProvider() != null)
             VineriumLib.inst().getVaultManager().getPermissionProvider().playerAdd(null,offlinePlayer,suffix.getPermission());
         if (offlinePlayer.isOnline()) {
-            offlinePlayer.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixAddMessage",suffix.getSymbol()));
+            offlinePlayer.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_add_message",suffix.getParsedPlaceholder()));
         }
-        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixAddedSuccessfully",playerName,suffix.getSymbol()));
+        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_added_successfully",playerName,suffix.getParsedPlaceholder()));
     }
 
     private static void communitySuffixRemoveUserCommand(CommandSender sender, String suffixName, String playerName) {
 
         SuffixManager suffixManager = VineriumCore.inst().getSuffixManager();
         if (!suffixManager.getCommunitySuffixes().containsKey(suffixName)) {
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixDoesntExist",suffixName));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_does_not_exist",suffixName));
             return;
         }
         VinSuffix suffix = suffixManager.getSuffixes().get(suffixName);
         CommunitySuffix communitySuffix = suffixManager.getCommunitySuffixes().get(suffixName);
         if (!sender.hasPermission(communitySuffix.getPermission())) {
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixNoPermission"));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_no_permission"));
             return;
         }
         if (!communitySuffix.getUsers().contains(playerName)) {
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixCommunityPlayerNotFound",playerName));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_community_player_not_found",playerName));
             return;
         }
         OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
@@ -300,21 +300,21 @@ public class SuffixCommandsManager {
             VineriumLib.inst().getVaultManager().getPermissionProvider().playerRemove(null,offlinePlayer,suffix.getPermission());
         if (offlinePlayer.isOnline()) {
             VineriumCore.inst().getSuffixManager().checkSuffixPermission(offlinePlayer.getPlayer());
-            offlinePlayer.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixRemoveMessage",suffix.getSymbol()));
+            offlinePlayer.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_remove_message",suffix.getParsedPlaceholder()));
         }
-        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixRemovedSuccessfully",playerName,suffix.getSymbol()));
+        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_removed_successfully",playerName,suffix.getParsedPlaceholder()));
     }
 
     private static void communitySuffixSetLimitCommand(CommandSender sender, String suffixName, int limit) {
 
         SuffixManager suffixManager = VineriumCore.inst().getSuffixManager();
         if (!suffixManager.getCommunitySuffixes().containsKey(suffixName)) {
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixDoesntExist",suffixName));
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_does_not_exist",suffixName));
             return;
         }
         VinSuffix suffix = suffixManager.getSuffixes().get(suffixName);
         CommunitySuffix communitySuffix = suffixManager.getCommunitySuffixes().get(suffixName);
         communitySuffix.setSuffixLimit(limit);
-        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"communitySuffixSetLimitSuccessfully",suffix.getSymbol(),Integer.toString(limit)));
+        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_set_limit_successfully",suffix.getParsedPlaceholder(),Integer.toString(limit)));
     }
 }

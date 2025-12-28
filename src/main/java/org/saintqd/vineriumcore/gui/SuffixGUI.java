@@ -72,18 +72,18 @@ public class SuffixGUI extends VinGUI {
             }
             if (availableSuffixes.get(suffixName)) {
                 loreBuilder.addLine(Component.empty());
-                loreBuilder.addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixPressToSelect"));
-                loreBuilder.addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixPressToRemove"));
+                loreBuilder.addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffix_press_to_select"));
+                loreBuilder.addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffix_press_to_remove"));
                 VinGUIButton button = new VinGUIButton().consumer(event -> {
                     switch (event.getClick()) {
-                        case LEFT -> suffix.changeSuffix(getPlayer(),getPlayer());
-                        case RIGHT -> VinSuffix.clearSuffix(getPlayer(),getPlayer());
+                        case LEFT -> VineriumCore.inst().getSuffixManager().changeSuffix(getPlayer(),getPlayer(),suffix);
+                        case RIGHT -> VineriumCore.inst().getSuffixManager().clearSuffix(getPlayer(),getPlayer());
                     }
                 });
                 getButtons().put(slotIndex,button);
             }
             else {
-                loreBuilder.addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixNoPermission"));
+                loreBuilder.addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffix_no_permission"));
             }
 
             suffixItem.setData(DataComponentTypes.LORE, loreBuilder.build());
@@ -98,10 +98,10 @@ public class SuffixGUI extends VinGUI {
             ItemStack pageItem = ItemStack.of(Material.PAPER);
             @Subst("minecraft:paper") String modelName = VineriumCore.inst().getSuffixManager().getMenuModels().getOrDefault("PrevPageButton","paper");
             pageItem.setData(DataComponentTypes.ITEM_MODEL, Key.key(modelName));
-            pageItem.setData(DataComponentTypes.CUSTOM_NAME,VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"menuPrevPage"));
+            pageItem.setData(DataComponentTypes.CUSTOM_NAME,VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"menu_prev_page"));
             pageItem.setData(DataComponentTypes.LORE,
                     ItemLore.lore()
-                            .addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"menuPrevPageLore"))
+                            .addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"menu_prev_page_lore"))
                             .build());
 
             VinGUIButton button = new VinGUIButton().consumer(event -> {
@@ -116,10 +116,10 @@ public class SuffixGUI extends VinGUI {
             ItemStack pageItem = ItemStack.of(Material.PAPER);
             @Subst("minecraft:paper") String modelName = VineriumCore.inst().getSuffixManager().getMenuModels().getOrDefault("NextPageButton","paper");
             pageItem.setData(DataComponentTypes.ITEM_MODEL, Key.key(modelName));
-            pageItem.setData(DataComponentTypes.CUSTOM_NAME,VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"menuNextPage"));
+            pageItem.setData(DataComponentTypes.CUSTOM_NAME,VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"menu_next_page"));
             pageItem.setData(DataComponentTypes.LORE,
                     ItemLore.lore()
-                            .addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"menuNextPageLore"))
+                            .addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"menu_next_page_lore"))
                             .build());
 
             VinGUIButton button = new VinGUIButton().consumer(event -> {
@@ -134,10 +134,10 @@ public class SuffixGUI extends VinGUI {
         ItemStack closeItem = ItemStack.of(Material.PAPER);
         @Subst("minecraft:barrier") String modelName = VineriumCore.inst().getSuffixManager().getMenuModels().getOrDefault("CloseButton","barrier");
         closeItem.setData(DataComponentTypes.ITEM_MODEL, Key.key(modelName));
-        closeItem.setData(DataComponentTypes.CUSTOM_NAME,VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"menuClose"));
+        closeItem.setData(DataComponentTypes.CUSTOM_NAME,VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"menu_close"));
         closeItem.setData(DataComponentTypes.LORE,
                 ItemLore.lore()
-                        .addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"menuCloseLore"))
+                        .addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"menu_close_lore"))
                         .build());
 
         VinGUIButton button = new VinGUIButton().consumer(event -> {

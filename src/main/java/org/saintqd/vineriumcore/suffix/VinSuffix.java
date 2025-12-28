@@ -1,5 +1,6 @@
 package org.saintqd.vineriumcore.suffix;
 
+import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -18,6 +19,7 @@ public class VinSuffix {
     private final String permission;
     private final List<String> desc;
     private final String symbol;
+    private final String placeholder;
 
     public VinSuffix(String name, ConfigurationSection suffixConfig) {
         this.name = name;
@@ -26,6 +28,7 @@ public class VinSuffix {
         this.desc = suffixConfig.getStringList("Desc");
         this.permission = suffixConfig.getString("Permission","vineriumcore.suffix."+name.toLowerCase());
         this.symbol = suffixConfig.getString("Symbol","+");
+        this.placeholder = VineriumCore.inst().getSuffixManager().getPlaceholderTemplate().replace("{0}",name);
     }
 
     public String getName() {
@@ -52,23 +55,11 @@ public class VinSuffix {
         return symbol;
     }
 
-    public void changeSuffix(Audience audience, Player player) {
-        VaultManager vaultManager = VineriumLib.inst().getVaultManager();
-        if (vaultManager == null || vaultManager.getChatProvider() == null) {
-            audience.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixAreNotSupported"));
-            return;
-        }
-        vaultManager.getChatProvider().setPlayerSuffix(null,player, symbol);
-        audience.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixAppliedMessage",symbol));
+    public String getPlaceholder() {
+        return placeholder;
     }
 
-    public static void clearSuffix(Audience audience, Player player) {
-        VaultManager vaultManager = VineriumLib.inst().getVaultManager();
-        if (vaultManager == null || vaultManager.getChatProvider() == null) {
-            audience.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixAreNotSupported"));
-            return;
-        }
-        vaultManager.getChatProvider().setPlayerSuffix(null,player, null);
-        audience.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffixRemovedMessage"));
+    public String getParsedPlaceholder() {
+        return VineriumLib.inst().isPlaceholderAPIEnabled() ? PlaceholderAPI.setPlaceholders(null,placeholder) : placeholder;
     }
 }

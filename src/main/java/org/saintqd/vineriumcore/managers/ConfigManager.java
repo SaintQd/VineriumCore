@@ -18,6 +18,7 @@ public class ConfigManager {
             return;
         }
         YamlConfiguration suffixYaml = YamlConfiguration.loadConfiguration(suffixFile);
+        suffixYaml.addDefault("PlaceholderTemplate","%oraxen_{0}%");
         suffixYaml.addDefault("HideWithoutPermission",true);
         suffixYaml.addDefault("MenuTitle","Suffixes");
         suffixYaml.addDefault("MenuPageSize",36);

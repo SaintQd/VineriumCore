@@ -18,13 +18,15 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.8-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:1.21.10-R0.1-SNAPSHOT")
     compileOnly("me.clip:placeholderapi:2.11.6") // repo.extendedclip.com
     compileOnly(files("../VineriumLib/build/libs/VineriumLib-1.0-SNAPSHOT.jar"))
     compileOnly("com.github.Zrips:CMI-API:9.7.14.3")
     compileOnly("com.github.MilkBowl:VaultAPI:1.7.1")
     compileOnly("com.discordsrv:discordsrv:1.30.2")
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.14-SNAPSHOT")
+    compileOnly("com.gitlab.ruany:LiteBansAPI:0.6.1")
+    compileOnly("net.luckperms:api:5.5")
 }
 
 tasks.test {

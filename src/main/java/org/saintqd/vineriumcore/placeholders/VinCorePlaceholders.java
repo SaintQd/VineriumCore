@@ -1,9 +1,12 @@
 package org.saintqd.vineriumcore.placeholders;
 
+import me.clip.placeholderapi.PlaceholderAPI;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
+import net.milkbowl.vault.permission.Permission;
 import org.bukkit.entity.Player;
 import org.saintqd.vineriumcore.VineriumCore;
 import org.saintqd.vineriumcore.managers.PlayerManager;
+import org.saintqd.vineriumlib.VineriumLib;
 
 public class VinCorePlaceholders extends PlaceholderExpansion {
 
@@ -57,6 +60,29 @@ public class VinCorePlaceholders extends PlaceholderExpansion {
                 if (playerManager.getPvpModePlayers().contains(player))
                     return playerManager.getPvpPlaceholder();
                 else return "";
+            }
+        },
+        VIP_UNTIL {
+            @Override
+            public String placeholderResult(VineriumCore plugin, Player player) {
+                if (VineriumLib.inst().getVaultManager() != null && VineriumLib.inst().getVaultManager().getPermissionProvider() != null && VineriumCore.inst().getLuckPermsManager() != null) {
+                    return VineriumCore.inst().getLuckPermsManager().getVipUntil(player);
+                }
+                else return "";
+            }
+        },
+        SUFFIX {
+            @Override
+            public String placeholderResult(VineriumCore plugin, Player player) {
+                if (VineriumCore.inst().getLuckPermsManager() != null)
+                    return VineriumCore.inst().getLuckPermsManager().getSuffix(player);
+                else return "";
+            }
+        },
+        SUFFIX_PARSED {
+            @Override
+            public String placeholderResult(VineriumCore plugin, Player player) {
+                return PlaceholderAPI.setPlaceholders(player,PlaceholderAPI.setPlaceholders(player,"%luckperms_suffix%"));
             }
         };
 

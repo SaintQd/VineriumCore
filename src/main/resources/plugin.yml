@@ -9,6 +9,8 @@ softdepend:
   - CMI
   - DiscordSRV
   - WorldGuard
+  - LiteBans
+  - LuckPerms
 permissions:
   vineriumcore.admin:
     description: Access to admin commands.

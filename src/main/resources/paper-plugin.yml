@@ -24,3 +24,9 @@ dependencies:
     WorldGuard:
       load: BEFORE
       required: false
+    LiteBans:
+      load: BEFORE
+      required: false
+    LuckPerms:
+      load: BEFORE
+      required: false

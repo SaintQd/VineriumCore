@@ -4,6 +4,7 @@ import com.Zrips.CMI.CMI;
 import com.Zrips.CMI.Containers.CMIUser;
 import com.Zrips.CMI.Modules.PlayTime.PlayTimeManager;
 import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.util.TriState;
 import org.bukkit.Bukkit;
@@ -50,13 +51,15 @@ public class HintManager {
 
     public void sendHint(Audience audience, int index) {
         String hint = hints.get(index);
-        String hintPrefix = VineriumLib.inst().getLangManager().getLangLines(
-                VineriumCore.inst()).get("hintPrefix").replace("{1}",Integer.toString(index));
+        String hintPrefix = VineriumLib.inst().getLangManager().getLangLines().getOrDefault(
+                Key.key(VineriumCore.inst(),"hint_prefix"),"hint_prefix").replace("{1}",Integer.toString(index));
         String finalHint = hintPrefix + hint;
         audience.sendMessage(MiniMessage.miniMessage().deserialize(finalHint));
     }
 
     public void sendStarterHint(Audience audience) {
+        if (hints.isEmpty())
+            return;
         sendStarterHint(audience, ThreadLocalRandom.current().nextInt(0,hints.size()));
     }
 

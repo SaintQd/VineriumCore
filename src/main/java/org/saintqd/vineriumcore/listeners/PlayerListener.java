@@ -21,6 +21,7 @@ import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.*;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -28,11 +29,13 @@ import org.bukkit.event.inventory.PrepareAnvilEvent;
 import org.bukkit.event.inventory.PrepareGrindstoneEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.inventory.AnvilInventory;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.GrindstoneInventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.permissions.PermissionAttachmentInfo;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.intellij.lang.annotations.Subst;
 import org.saintqd.vineriumcore.VineriumCore;
 import org.saintqd.vineriumcore.managers.PlayerManager;
 import org.saintqd.vineriumcore.suffix.VinSuffix;
@@ -50,6 +53,22 @@ public class PlayerListener implements Listener {
     private final HashMap<AnvilInventory, Integer> realMaxRepairCosts = new HashMap<>();
 
     @EventHandler
+    public void onPlayerLogin(AsyncPlayerPreLoginEvent event) {
+        if (!VineriumCore.inst().getConfig().getBoolean("PlayerLimit.Enabled"))
+            return;
+        OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(event.getUniqueId());
+        if (VineriumLib.inst().getVaultManager() != null && VineriumLib.inst().getVaultManager().getPermissionProvider() != null) {
+            if (VineriumLib.inst().getVaultManager().getPermissionProvider().playerHas(null,offlinePlayer,"vineriumcore.bypasslimit")) {
+                return;
+            }
+        }
+        if (Bukkit.getOnlinePlayers().size() + 1 > VineriumCore.inst().getConfig().getInt("PlayerLimit.Limit",100)) {
+            event.kickMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"kick_server_is_full"));
+            event.setLoginResult(AsyncPlayerPreLoginEvent.Result.KICK_FULL);
+        }
+    }
+
+    @EventHandler
     public void onPlayerJoinMessage(final PlayerJoinEvent event) {
         VineriumCore.inst().getSuffixManager().checkSuffixPermission(event.getPlayer());
 
@@ -62,9 +81,9 @@ public class PlayerListener implements Listener {
                 playTimeCheck = false;
             if (playTimeCheck) {
                 if (hintIndex == -1 || hintIndex >= VineriumCore.inst().getHintManager().getHints().size())
-                    VineriumCore.inst().getHintManager().sendStarterHint(Audience.audience(Bukkit.getOnlinePlayers()));
+                    VineriumCore.inst().getHintManager().sendStarterHint(Audience.audience(event.getPlayer()));
                 else
-                    VineriumCore.inst().getHintManager().sendStarterHint(Audience.audience(Bukkit.getOnlinePlayers()), hintIndex);
+                    VineriumCore.inst().getHintManager().sendStarterHint(Audience.audience(event.getPlayer()), hintIndex);
             }
         }
 
@@ -105,8 +124,9 @@ public class PlayerListener implements Listener {
             return;
         joinMessageFormat = joinMessageFormat.replace("[message]", joinMessage).replace("[dot]",".");
         joinMessageFormat = joinMessageFormat.replace("*", VineriumCore.inst().getConfig().getString("Messages.NicknameFormat", event.getPlayer().getName()));
+        // Обрабатываем плейсхолдеры дважды, т.к. после первой обработки могут остаться вложенные плейсхолдеры
         joinMessageFormat = (VineriumCore.inst().getPlaceholders() != null)
-                ? PlaceholderAPI.setPlaceholders(event.getPlayer(), joinMessageFormat)
+                ? PlaceholderAPI.setPlaceholders(event.getPlayer(), PlaceholderAPI.setPlaceholders(event.getPlayer(),joinMessageFormat))
                 : joinMessageFormat;
         event.joinMessage(VinUtils.parseString(joinMessageFormat));
 
@@ -152,7 +172,7 @@ public class PlayerListener implements Listener {
         leaveMessageFormat = leaveMessageFormat.replace("[message]", leaveMessage).replace("[dot]",".");
         leaveMessageFormat = leaveMessageFormat.replace("*", VineriumCore.inst().getConfig().getString("Messages.NicknameFormat", event.getPlayer().getName()));
         leaveMessageFormat = (VineriumCore.inst().getPlaceholders() != null)
-                ? PlaceholderAPI.setPlaceholders(event.getPlayer(), leaveMessageFormat)
+                ? PlaceholderAPI.setPlaceholders(event.getPlayer(), PlaceholderAPI.setPlaceholders(event.getPlayer(),leaveMessageFormat))
                 : leaveMessageFormat;
         event.quitMessage(VinUtils.parseString(leaveMessageFormat));
 
@@ -187,7 +207,7 @@ public class PlayerListener implements Listener {
             || event.getPlayer().hasPermission("vineriumcore.rightclicknickname.alwaysshow")) {
                 String messageFormat = VineriumCore.inst().getConfig().getString("Messages.NicknameFormat", event.getPlayer().getName());
                 messageFormat = (VineriumCore.inst().getPlaceholders() != null)
-                        ? PlaceholderAPI.setPlaceholders(interactedPlayer, messageFormat)
+                        ? PlaceholderAPI.setPlaceholders(interactedPlayer, PlaceholderAPI.setPlaceholders(interactedPlayer,messageFormat))
                         : messageFormat;
                 event.getPlayer().sendActionBar(VinUtils.parseString(messageFormat));
             }
@@ -202,6 +222,28 @@ public class PlayerListener implements Listener {
                 handItem.setAmount(handItem.getAmount() - 1);
             breedable.setAgeLock(true);
             breedable.addPotionEffect(new PotionEffect(PotionEffectType.POISON,40,1,false,true));
+        }
+    }
+
+    @EventHandler
+    public void onPlayerBlockInteract(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        if (event.getHand() != EquipmentSlot.HAND) return;
+        if (event.getClickedBlock() != null
+                && (event.getClickedBlock().getType() == Material.CHIPPED_ANVIL || event.getClickedBlock().getType() == Material.DAMAGED_ANVIL)
+                && VineriumCore.inst().getConfig().getBoolean("Tweaks.AnvilRepair.Enabled",true)) {
+            Material repairMaterial = Material.valueOf(VineriumCore.inst().getConfig().getString("Tweaks.AnvilRepair.RepairMaterial","IRON_BLOCK"));
+            @Subst("block.chain.hit") String repairSound = VineriumCore.inst().getConfig()
+                    .getString("Tweaks.AnvilRepair.RepairSound", null);
+            if (!event.getPlayer().hasPermission("vineriumcore.anvilrepair")) return;
+            if (event.getPlayer().getInventory().getItemInMainHand().getType() != repairMaterial) return;
+            if (event.getClickedBlock().getType() == Material.DAMAGED_ANVIL) {
+                event.getClickedBlock().setType(Material.CHIPPED_ANVIL);
+            } else {
+                event.getClickedBlock().setType(Material.ANVIL);
+            }
+            if (repairSound != null)
+                event.getClickedBlock().getWorld().playSound(event.getClickedBlock().getLocation(),repairSound,SoundCategory.BLOCKS,1f,1f);
         }
     }
 
@@ -237,27 +279,27 @@ public class PlayerListener implements Listener {
                 return;
             if (!playerManager.getPvpModePlayers().contains(entityPlayer)) {
                 event.setCancelled(true);
-                HashMap<Player, ImmutablePair<String,Long>> timers = playerManager.getTimers().getOrDefault("entityNotEnabledPvp",new HashMap<>());
+                HashMap<Player, ImmutablePair<String,Long>> timers = playerManager.getTimers().getOrDefault("entity_not_enabled_pvp",new HashMap<>());
                 ImmutablePair<String,Long> damagerVariable = timers.getOrDefault(damagerPlayer,new ImmutablePair<>(null,0L));
                 if (damagerVariable.getRight() < VinUtils.getCurrentTick()) {
                     damagerVariable = new ImmutablePair<>(null,VinUtils.getCurrentTick() +
-                            VineriumCore.inst().getConfig().getLong("TimersCooldown.entityNotEnabledPvp",200L));
+                            VineriumCore.inst().getConfig().getLong("TimersCooldown.entity_not_enabled_pvp",200L));
                     timers.put(damagerPlayer,damagerVariable);
-                    playerManager.getTimers().put("entityNotEnabledPvp",timers);
-                    damagerPlayer.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "entityNotEnabledPvp", entityPlayer.getName()));
+                    playerManager.getTimers().put("entity_not_enabled_pvp",timers);
+                    damagerPlayer.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "entity_not_enabled_pvp", entityPlayer.getName()));
                 }
                 return;
             }
             if (!playerManager.getPvpModePlayers().contains(damagerPlayer)) {
                 event.setCancelled(true);
-                HashMap<Player, ImmutablePair<String,Long>> timers = playerManager.getTimers().getOrDefault("damagerNotEnabledPvp",new HashMap<>());
+                HashMap<Player, ImmutablePair<String,Long>> timers = playerManager.getTimers().getOrDefault("damager_not_enabled_pvp",new HashMap<>());
                 ImmutablePair<String,Long> damagerVariable = timers.getOrDefault(damagerPlayer,new ImmutablePair<>(null,0L));
                 if (damagerVariable.getRight() < VinUtils.getCurrentTick()) {
                     damagerVariable = new ImmutablePair<>(null,VinUtils.getCurrentTick() +
-                            VineriumCore.inst().getConfig().getLong("TimersCooldown.damagerNotEnabledPvp",200L));
+                            VineriumCore.inst().getConfig().getLong("TimersCooldown.damager_not_enabled_pvp",200L));
                     timers.put(damagerPlayer,damagerVariable);
-                    playerManager.getTimers().put("damagerNotEnabledPvp",timers);
-                    damagerPlayer.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "damagerNotEnabledPvp", entityPlayer.getName()));
+                    playerManager.getTimers().put("damager_not_enabled_pvp",timers);
+                    damagerPlayer.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "damager_not_enabled_pvp", entityPlayer.getName()));
                 }
                 return;
             }
@@ -327,7 +369,7 @@ public class PlayerListener implements Listener {
                 String playerName = VineriumCore.inst().getConfig().getString("Messages.Death.PlayerName","*")
                         .replace("*",onlinePlayer.getName());
                 playerName = VineriumLib.inst().isPlaceholderAPIEnabled()
-                        ? PlaceholderAPI.setPlaceholders(onlinePlayer,playerName)
+                        ? PlaceholderAPI.setPlaceholders(onlinePlayer,PlaceholderAPI.setPlaceholders(onlinePlayer,playerName))
                         : playerName;
                 serializedMessage = serializedMessage.replace(">"+onlinePlayer.getName()+"\":",">"+playerName+"\":");
             }
@@ -360,7 +402,7 @@ public class PlayerListener implements Listener {
         String playerName = VineriumCore.inst().getConfig().getString("Messages.Advancement.PlayerName","*")
                 .replace("*",event.getPlayer().getName());
         playerName = VineriumLib.inst().isPlaceholderAPIEnabled()
-                ? PlaceholderAPI.setPlaceholders(event.getPlayer(),playerName)
+                ? PlaceholderAPI.setPlaceholders(event.getPlayer(),PlaceholderAPI.setPlaceholders(event.getPlayer(),playerName))
                 : playerName;
         serializedMessage = serializedMessage.replace(">"+event.getPlayer().getName()+"\":",">"+playerName+"\":");
         serializedMessage = prefix.replace("*",serializedMessage);

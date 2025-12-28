@@ -56,19 +56,19 @@ public class VillagerListener implements Listener {
     public void onVillagerInteract(PlayerInteractEntityEvent event) {
         if (!(event.getRightClicked() instanceof Villager villager)) return;
         if (event.getHand() != EquipmentSlot.HAND) return;
-        if (!VineriumCore.inst().getConfig().getBoolean("VillagerOptimizer.Enabled",true)) return;
+        if (!VineriumCore.inst().getConfig().getBoolean("Tweaks.VillagerOptimizer.Enabled",true)) return;
 
         Material interactMaterial = Material.valueOf(VineriumCore.inst().getConfig()
-                .getString("VillagerOptimizer.InteractMaterial",Material.SHEARS.name()).toUpperCase());
+                .getString("Tweaks.VillagerOptimizer.InteractMaterial",Material.SHEARS.name()).toUpperCase());
         @Subst("block.chain.hit") String interactSound = VineriumCore.inst().getConfig()
-                .getString("VillagerOptimizer.InteractSound", null);
+                .getString("Tweaks.VillagerOptimizer.InteractSound", null);
 
         if (villager.isAware()) {
             if (event.getPlayer().getInventory().getItemInMainHand().getType() == interactMaterial) {
                 villager.setAware(false);
                 if (interactSound != null)
                     villager.getWorld().playSound(villager.getLocation(),interactSound,SoundCategory.NEUTRAL,1f,1f);
-                event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"villagerOptimizerInteractOff"));
+                event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"villager_optimizer_interact_off"));
 
                 event.setCancelled(true);
                 return;
@@ -79,14 +79,14 @@ public class VillagerListener implements Listener {
                 villager.setAware(true);
                 if (interactSound != null)
                     villager.getWorld().playSound(villager.getLocation(),interactSound,SoundCategory.NEUTRAL, 1f,1f);
-                event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"villagerOptimizerInteractOn"));
+                event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"villager_optimizer_interact_on"));
 
                 event.setCancelled(true);
                 return;
             }
             else {
                 if (!isJobSiteNearby(villager)) {
-                    event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "villagerOptimizerTooFarFromStation"));
+                    event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "villager_optimizer_too_far_from_station"));
                     event.setCancelled(true);
                     return;
                 }
@@ -99,10 +99,13 @@ public class VillagerListener implements Listener {
     public void onVillagerInventoryClick(InventoryClickEvent event) {
         if (event.getInventory().getType() != InventoryType.MERCHANT) return;
         if (!(event.getInventory().getHolder() instanceof Villager villager)) return;
-        if (!VineriumCore.inst().getConfig().getBoolean("VillagerOptimizer.Enabled", true)) return;
+        if (!VineriumCore.inst().getConfig().getBoolean("Tweaks.VillagerOptimizer.Enabled", true)) return;
         if (villager.isAware() && VineriumCore.inst().getConfig()
-                .getBoolean("VillagerOptimizer.DisableUnoptimizedTrades",true)) {
-            event.getWhoClicked().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "villagerOptimizerInteractHint"));
+                .getBoolean("Tweaks.VillagerOptimizer.DisableUnoptimizedTrades",true)) {
+            String interactMaterialString = VineriumCore.inst().getConfig().getString("Tweaks.VillagerOptimizer.InteractMaterial","STONE");
+            Material interactMaterial = Material.valueOf(interactMaterialString);
+            String translatableKey = "<lang:" + interactMaterial.translationKey() + ">";
+            event.getWhoClicked().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "villager_optimizer_interact_hint",translatableKey));
             event.setCancelled(true);
         }
     }
@@ -111,10 +114,13 @@ public class VillagerListener implements Listener {
     public void onVillagerTradeSelect(TradeSelectEvent event) {
         if (event.getInventory().getType() != InventoryType.MERCHANT) return;
         if (!(event.getInventory().getHolder() instanceof Villager villager)) return;
-        if (!VineriumCore.inst().getConfig().getBoolean("VillagerOptimizer.Enabled", true)) return;
+        if (!VineriumCore.inst().getConfig().getBoolean("Tweaks.VillagerOptimizer.Enabled", true)) return;
         if (villager.isAware() && VineriumCore.inst().getConfig()
-                .getBoolean("VillagerOptimizer.DisableUnoptimizedTrades",true)) {
-            event.getWhoClicked().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "villagerOptimizerInteractHint"));
+                .getBoolean("Tweaks.VillagerOptimizer.DisableUnoptimizedTrades",true)) {
+            String interactMaterialString = VineriumCore.inst().getConfig().getString("Tweaks.VillagerOptimizer.InteractMaterial","STONE");
+            Material interactMaterial = Material.valueOf(interactMaterialString);
+            String translatableKey = "<lang:" + interactMaterial.translationKey() + ">";
+            event.getWhoClicked().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "villager_optimizer_interact_hint",translatableKey));
             event.setCancelled(true);
         }
     }
@@ -122,7 +128,7 @@ public class VillagerListener implements Listener {
     private void refreshTrades(Villager villager, Player player) {
 
         long lastRestock = this.lastRestock.getOrDefault(villager,0L);
-        long restockInterval = VineriumCore.inst().getConfig().getLong("VillagerOptimizer.RestockInterval",1000L);
+        long restockInterval = VineriumCore.inst().getConfig().getLong("Tweaks.VillagerOptimizer.RestockInterval",1000L);
 
         if (VinUtils.getCurrentTick() < lastRestock + restockInterval) return;
 

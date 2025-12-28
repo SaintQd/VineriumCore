@@ -38,17 +38,13 @@ Messages:
       - CHALLENGE
     AlwaysShowNamespaces:
       - 'minecraft'
-VillagerOptimizer:
-  Enabled: true
-  DisableUnoptimizedTrades: true
-  InteractMaterial: SHEARS
-  RestockInterval: 1000
-  RestockSound: entity.villager.celebrate
-  InteractSound: entity.villager.hurt
 StarterHints:
   Join: -1
   Timer: 24000
   MaxPlaytime: 18000000
+PlayerLimit:
+  Enabled: true
+  Limit: 100
 DynamicMobCaps:
   Enabled: true
   Categories:
@@ -100,9 +96,9 @@ PvPMode:
   Placeholder: '⚔ '
   MinRadiusWithoutPlayers: 50
 TimersCooldown:
-  entityNotEnabledPvp: 200
-  damagerNotEnabledPvp: 200
-  pvpToggleCooldown: 6000
+  entity_not_enabled_pvp: 200
+  damager_not_enabled_pvp: 200
+  pvp_toggle_cooldown: 6000
 Tweaks:
   RepairCostFix:
     Enabled: true
@@ -112,3 +108,51 @@ Tweaks:
     Enabled: true
     Item: POISONOUS_POTATO
     RemoveItem: true
+  VillagerOptimizer:
+    Enabled: true
+    DisableUnoptimizedTrades: true
+    InteractMaterial: SHEARS
+    RestockInterval: 1000
+    RestockSound: entity.villager.celebrate
+    InteractSound: entity.villager.hurt
+  CopperGolem:
+    Enabled: true
+    InteractMaterials:
+      - REDSTONE_TORCH
+      - END_ROD
+    InteractSound: entity.iron_golem.repair
+    MaxPerPlayer: 2
+    MaxPerChest: 1
+  AnvilRepair:
+    Enabled: true
+    RepairMaterial: IRON_BLOCK
+    RepairSound: entity.iron_golem.repair
+Compatibility:
+  LiteBans:
+    Enabled: true
+    CommandsOnBan:
+      - 'vindiscord addrole %player_name% 1307640043975737434'
+      - 'vindiscord removerole %player_name% 727633442950479873'
+    CommandsOnTempBan:
+      - 'vindiscord addrole %player_name% 1307640043975737434 %time%ms'
+      - 'vindiscord removerole %player_name% 727633442950479873 %time%ms'
+    CommandsOnUnban:
+      - 'vindiscord addrole %player_name% 727633442950479873'
+      - 'vindiscord removerole %player_name% 1307640043975737434'
+    CommandsOnMute: []
+    CommandsOnTempMute: []
+    CommandsOnUnmute: []
+  LuckPerms:
+    Enabled: true
+    VipGroupName: 'vip'
+AccountTransfer:
+  PlayerDataPath: 'world'
+  LuckPerms: true
+  Advancements: true
+  Stats: true
+  Inventory: true
+  EnderChest: true
+  Money: true
+  CMI: true
+  Commands:
+    - 'cmi tp %new_player_name% %old_player_name%'
