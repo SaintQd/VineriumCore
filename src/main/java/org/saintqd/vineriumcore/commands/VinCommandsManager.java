@@ -8,21 +8,26 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 import io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver;
+import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.key.Key;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.permissions.PermissionAttachmentInfo;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 import org.saintqd.vineriumcore.VineriumCore;
+import org.saintqd.vineriumcore.managers.ConfigManager;
 import org.saintqd.vineriumcore.managers.PlayerManager;
 import org.saintqd.vineriumlib.VineriumLib;
 import org.saintqd.vineriumlib.managers.VaultManager;
@@ -190,7 +195,22 @@ public class VinCommandsManager {
                                             )
                                     )
                             )
+                            .then(Commands.literal("lockitem")
+                                    .requires(predicate -> predicate.getSender() instanceof Player)
+                                    .executes(ctx -> {
+                                        lockItemCommand(ctx.getSource().getSender());
+                                        return Command.SINGLE_SUCCESS;
+                                    })
+                            )
+                            .then(Commands.literal("unlockitem")
+                                    .requires(predicate -> predicate.getSender() instanceof Player)
+                                    .executes(ctx -> {
+                                        unlockItemCommand(ctx.getSource().getSender());
+                                        return Command.SINGLE_SUCCESS;
+                                    })
+                            )
                             .then(SuffixCommandsManager.getSuffixCommands())
+                            .then(OresCommandsManager.getOresCommands())
                             .build(),
                     "Основная команда."
             );
@@ -379,7 +399,7 @@ public class VinCommandsManager {
     private static void transferAccountCommand(CommandSender sender, String oldPlayerName, String newPlayerName) {
         OfflinePlayer oldOfflinePlayer = Bukkit.getOfflinePlayer(oldPlayerName);
         OfflinePlayer newOfflinePlayer = Bukkit.getOfflinePlayer(newPlayerName);
-        if (!oldOfflinePlayer.hasPlayedBefore() || !newOfflinePlayer.hasPlayedBefore()) {
+        if (!oldOfflinePlayer.hasPlayedBefore() || (!newOfflinePlayer.hasPlayedBefore() && !newOfflinePlayer.isOnline())) {
             sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_not_played",
                     oldPlayerName,newPlayerName));
             return;
@@ -488,5 +508,62 @@ public class VinCommandsManager {
             }
             sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_commands_completed"));
         }
+    }
+
+    private static void lockItemCommand(CommandSender sender) {
+        Player player = VinUtils.checkForPlayerPresent(sender, null);
+
+        ItemStack templateItem = player.getInventory().getItemInMainHand();
+        if (!VineriumCore.inst().getConfigManager().getItemLockMaterials().contains(templateItem.getType().name())) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"lock_item_hint"));
+            return;
+        }
+        if (templateItem.getPersistentDataContainer().has(ConfigManager.getLockKey())) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"lock_item_already_locked"));
+            return;
+        }
+        templateItem.editPersistentDataContainer(pdc -> pdc.set(
+                ConfigManager.getLockKey(), PersistentDataType.STRING,player.getName()));
+        String customName;
+        if (templateItem.hasData(DataComponentTypes.CUSTOM_NAME)) {
+            customName = MiniMessage.miniMessage().serialize(templateItem.getData(DataComponentTypes.CUSTOM_NAME));
+            customName = customName + " " + VineriumLib.inst().getLangManager().getLangLines().get(NamespacedKey.fromString("vineriumcore:lock_item_name"));
+        }
+        else
+            customName = "<lang:" + templateItem.getType().translationKey() + "> " + VineriumLib.inst().getLangManager().getLangLines().get(NamespacedKey.fromString("vineriumcore:lock_item_name"));
+        templateItem.setData(DataComponentTypes.CUSTOM_NAME,VinUtils.parseString(customName));
+        templateItem.setData(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE,true);
+        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"lock_item_success"));
+    }
+
+    private static void unlockItemCommand(CommandSender sender) {
+        Player player = VinUtils.checkForPlayerPresent(sender, null);
+
+        ItemStack templateItem = player.getInventory().getItemInMainHand();
+        if (!VineriumCore.inst().getConfigManager().getItemLockMaterials().contains(templateItem.getType().name())) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"lock_item_hint"));
+            return;
+        }
+        if (!templateItem.getPersistentDataContainer().has(ConfigManager.getLockKey())) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"unlock_item_already_unlocked"));
+            return;
+        }
+        String ownerName = templateItem.getPersistentDataContainer().getOrDefault(ConfigManager.getLockKey(),PersistentDataType.STRING,"");
+        if (!ownerName.equals(player.getName())) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"unlock_item_not_owner"));
+            return;
+        }
+        templateItem.editPersistentDataContainer(pdc -> pdc.remove(
+                ConfigManager.getLockKey()));
+        if (templateItem.hasData(DataComponentTypes.CUSTOM_NAME)) {
+            String customName = MiniMessage.miniMessage().serialize(templateItem.getData(DataComponentTypes.CUSTOM_NAME));
+            customName = customName.replace(" " + VineriumLib.inst().getLangManager().getLangLines().get(NamespacedKey.fromString("vineriumcore:lock_item_name")),"");
+            if (customName.equals("<!italic><lang:"+templateItem.getType().translationKey()+">"))
+                templateItem.resetData(DataComponentTypes.CUSTOM_NAME);
+            else
+                templateItem.setData(DataComponentTypes.CUSTOM_NAME,VinUtils.parseString(customName));
+        }
+        templateItem.resetData(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE);
+        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"unlock_item_success"));
     }
 }

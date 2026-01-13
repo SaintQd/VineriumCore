@@ -1,24 +1,27 @@
 package org.saintqd.vineriumcore.listeners;
 
-import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.key.Key;
-import net.kyori.adventure.sound.Sound;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.bukkit.*;
+import org.bukkit.entity.Ageable;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Villager;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.CreatureSpawnEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.inventory.TradeSelectEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.MerchantRecipe;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.intellij.lang.annotations.Subst;
 import org.saintqd.vineriumcore.VineriumCore;
+import org.saintqd.vineriumcore.managers.PlayerManager;
 import org.saintqd.vineriumlib.VineriumLib;
 import org.saintqd.vineriumlib.utils.VinUtils;
 
@@ -58,6 +61,46 @@ public class VillagerListener implements Listener {
         if (event.getHand() != EquipmentSlot.HAND) return;
         if (!VineriumCore.inst().getConfig().getBoolean("Tweaks.VillagerOptimizer.Enabled",true)) return;
 
+        if (VineriumCore.inst().getConfig().getBoolean("Tweaks.VillagerManualBreed.Enabled",true)) {
+            ItemStack handItem = event.getPlayer().getInventory().getItemInMainHand();
+            if (VineriumCore.inst().getConfig().contains("Tweaks.VillagerManualBreed.Items."+handItem.getType())) {
+
+                PlayerManager playerManager = VineriumCore.inst().getPlayerManager();
+
+                HashMap<Player, ImmutablePair<String,Long>> timers = playerManager.getTimers()
+                        .getOrDefault("villager_manual_breed_cooldown",new HashMap<>());
+                ImmutablePair<String,Long> timerVariable = timers.getOrDefault(event.getPlayer(),new ImmutablePair<>(null,0L));
+
+                if (timerVariable.getRight() > VinUtils.getCurrentTick()) {
+                    long remainingTime = (timerVariable.getRight() - VinUtils.getCurrentTick()) / 20;
+                    event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"villager_manual_breed_cooldown",Long.toString(remainingTime)));
+                    return;
+                }
+
+                event.setCancelled(true);
+                int amount = handItem.getAmount();
+                int requiredAmount = VineriumCore.inst().getConfig().getInt("Tweaks.VillagerManualBreed.Items."+handItem.getType());
+                if (amount >= requiredAmount) {
+                    villager.getLocation().getWorld().spawn(villager.getLocation(),
+                            Villager.class, CreatureSpawnEvent.SpawnReason.BREEDING, Ageable::setBaby);
+                    villager.getWorld().spawnParticle(Particle.HEART, villager.getLocation().clone().add(0.0, 1.0, 0.0), 10, 0.25, 0.5, 0.25, 0.0);
+                    villager.getWorld().playSound(villager.getLocation(), org.bukkit.Sound.ENTITY_VILLAGER_CELEBRATE,SoundCategory.NEUTRAL,1f,1f);
+                    handItem.setAmount(handItem.getAmount() - requiredAmount);
+
+                    timerVariable = new ImmutablePair<>(null,VinUtils.getCurrentTick() + VineriumCore.inst().getConfig()
+                            .getLong("Tweaks.VillagerManualBreed.Cooldown",1200L));
+                    timers.put(event.getPlayer(),timerVariable);
+                    playerManager.getTimers().put("villager_manual_breed_cooldown",timers);
+                }
+                else {
+                    event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),
+                            "villager_manual_breed_no_items",Integer.toString(requiredAmount),"<lang:"+handItem.getType().translationKey()+">"));
+                }
+
+                return;
+            }
+        }
+
         Material interactMaterial = Material.valueOf(VineriumCore.inst().getConfig()
                 .getString("Tweaks.VillagerOptimizer.InteractMaterial",Material.SHEARS.name()).toUpperCase());
         @Subst("block.chain.hit") String interactSound = VineriumCore.inst().getConfig()
@@ -65,6 +108,22 @@ public class VillagerListener implements Listener {
 
         if (villager.isAware()) {
             if (event.getPlayer().getInventory().getItemInMainHand().getType() == interactMaterial) {
+
+                Key professionKey = villager.getProfession().key();
+                if (VineriumCore.inst().getConfigManager().getInjectedVillagerTrades().getRecipes().containsKey(professionKey)) {
+                    List<MerchantRecipe> recipesToAdd = new ArrayList<>(VineriumCore.inst().getConfigManager().getInjectedVillagerTrades().getRecipes().get(professionKey));
+                    recipesToAdd.removeIf(testedRecipe -> {
+                        for (MerchantRecipe villagerRecipe : villager.getRecipes()) {
+                            if (villagerRecipe.getResult().getType() == testedRecipe.getResult().getType())
+                                return true;
+                        }
+                        return false;
+                    });
+                    List<MerchantRecipe> recipes = new ArrayList<>(villager.getRecipes());
+                    recipes.addAll(recipesToAdd);
+                    villager.setRecipes(recipes);
+                }
+
                 villager.setAware(false);
                 if (interactSound != null)
                     villager.getWorld().playSound(villager.getLocation(),interactSound,SoundCategory.NEUTRAL,1f,1f);
@@ -90,7 +149,7 @@ public class VillagerListener implements Listener {
                     event.setCancelled(true);
                     return;
                 }
-                refreshTrades(villager, event.getPlayer());
+                refreshTrades(villager);
             }
         }
     }
@@ -125,7 +184,7 @@ public class VillagerListener implements Listener {
         }
     }
 
-    private void refreshTrades(Villager villager, Player player) {
+    private void refreshTrades(Villager villager) {
 
         long lastRestock = this.lastRestock.getOrDefault(villager,0L);
         long restockInterval = VineriumCore.inst().getConfig().getLong("Tweaks.VillagerOptimizer.RestockInterval",1000L);

@@ -18,9 +18,6 @@ dependencies:
     CMI:
       load: BEFORE
       required: false
-    DiscordSRV:
-      load: BEFORE
-      required: false
     WorldGuard:
       load: BEFORE
       required: false

@@ -45,52 +45,69 @@ StarterHints:
 PlayerLimit:
   Enabled: true
   Limit: 100
+DynamicParamsUpdateTime: 12000
 DynamicMobCaps:
   Enabled: true
   Categories:
     MONSTER:
       ALL:
-       0: 25
-       15: 20
-       25: 15
-       35: 10
-       45: 5
-    ANIMAL:
-      ALL:
-        0: 8
-        15: 6
-        25: 4
-        35: 2
-    WATER_ANIMAL:
-      ALL:
-        0: 8
-        15: 6
-        25: 4
-        35: 2
-    WATER_AMBIENT:
-      ALL:
-        0: 8
-        15: 6
-        25: 4
-        35: 2
-    WATER_UNDERGROUND_CREATURE:
-      ALL:
-        0: 8
-        15: 6
-        25: 4
-        35: 2
-    AXOLOTL:
-      ALL:
-        0: 5
-        15: 4
-        25: 3
-        35: 2
-        45: 1
-    AMBIENT:
-      ALL:
-        0: 3
-        25: 2
-        35: 1
+        '0': 25
+        '25': 20
+        '50': 15
+        '75': 10
+        '100': 5
+      ANIMAL:
+        ALL:
+          '0': 8
+          '25': 6
+          '50': 4
+          '75': 2
+      WATER_ANIMAL:
+        ALL:
+          '0': 8
+          '25': 6
+          '50': 4
+          '75': 2
+      WATER_AMBIENT:
+        ALL:
+          '0': 8
+          '25': 6
+          '50': 4
+          '75': 2
+      WATER_UNDERGROUND_CREATURE:
+        ALL:
+          '0': 3
+          '25': 2
+          '50': 1
+          '75': 6
+      AXOLOTL:
+        ALL:
+          '0': 5
+          '25': 4
+          '50': 3
+          '75': 2
+          '100': 1
+      AMBIENT:
+        ALL:
+          '0': 3
+          '25': 2
+          '50': 1
+DynamicDistance:
+  Enabled: true
+  View:
+    ALL:
+      0: 8
+      30: 7
+      60: 6
+      80: 5
+      100: 4
+  Simulation:
+    ALL:
+      0: 7
+      30: 6
+      60: 5
+      80: 4
+      100: 3
 PvPMode:
   Enabled: true
   Placeholder: '⚔ '
@@ -115,6 +132,17 @@ Tweaks:
     RestockInterval: 1000
     RestockSound: entity.villager.celebrate
     InteractSound: entity.villager.hurt
+    InjectTradesOnOptimize:
+      minecraft:toolsmith:
+        - 'EMERALD:1,AIR:1,IRON_INGOT:4'
+  VillagerManualBreed:
+    Enabled: true
+    Cooldown: 1200
+    Items:
+      BREAD: 6
+      CARROT: 24
+      POTATO: 24
+      BEETROOT: 24
   CopperGolem:
     Enabled: true
     InteractMaterials:
@@ -127,6 +155,21 @@ Tweaks:
     Enabled: true
     RepairMaterial: IRON_BLOCK
     RepairSound: entity.iron_golem.repair
+  PortalRedirect:
+    Enabled: false
+    Worlds:
+      test:
+        Commands:
+          - 'cmi tppos %player_name% 100.0 100.0 100.0'
+  MaceDenier:
+    Enabled: false
+    CustomNames:
+      - 'Элдрик, Главный кузнец Незера'
+  ItemLock:
+    Enabled: true
+    Materials:
+      - 'NETHERITE_UPGRADE_SMITHING_TEMPLATE'
+      - 'FILLED_MAP'
 Compatibility:
   LiteBans:
     Enabled: true
@@ -156,3 +199,18 @@ AccountTransfer:
   CMI: true
   Commands:
     - 'cmi tp %new_player_name% %old_player_name%'
+OreAlerts:
+  Enabled: true
+  Materials:
+    DEEPSLATE_DIAMOND_ORE:
+      Threshold: 25
+      Color: "<aqua>"
+    DIAMOND_ORE:
+      Threshold: 25
+      Color: "<aqua>"
+    ANCIENT_DEBRIS:
+      Threshold: 7
+      Color: "<red>"
+  HoverCommand: 'cmi tp {1}'
+  TimeToThreshold: 12000
+  Sound: "entity.player.levelup,2"

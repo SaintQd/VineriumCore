@@ -10,10 +10,13 @@ import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import io.papermc.paper.datacomponent.DataComponentTypes;
 import io.papermc.paper.datacomponent.item.ItemEnchantments;
+import io.papermc.paper.event.player.CartographyItemEvent;
 import me.clip.placeholderapi.PlaceholderAPI;
 import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.*;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.kyori.adventure.util.TriState;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.bukkit.*;
@@ -22,11 +25,13 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.*;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.PrepareAnvilEvent;
-import org.bukkit.event.inventory.PrepareGrindstoneEvent;
+import org.bukkit.event.inventory.PrepareItemCraftEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.inventory.AnvilInventory;
 import org.bukkit.inventory.EquipmentSlot;
@@ -37,8 +42,9 @@ import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.intellij.lang.annotations.Subst;
 import org.saintqd.vineriumcore.VineriumCore;
+import org.saintqd.vineriumcore.managers.ConfigManager;
+import org.saintqd.vineriumcore.managers.OreManager;
 import org.saintqd.vineriumcore.managers.PlayerManager;
-import org.saintqd.vineriumcore.suffix.VinSuffix;
 import org.saintqd.vineriumcore.worldguard.Flags;
 import org.saintqd.vineriumlib.VineriumLib;
 import org.saintqd.vineriumlib.gui.holders.VinGUIHolder;
@@ -236,7 +242,8 @@ public class PlayerListener implements Listener {
             @Subst("block.chain.hit") String repairSound = VineriumCore.inst().getConfig()
                     .getString("Tweaks.AnvilRepair.RepairSound", null);
             if (!event.getPlayer().hasPermission("vineriumcore.anvilrepair")) return;
-            if (event.getPlayer().getInventory().getItemInMainHand().getType() != repairMaterial) return;
+            ItemStack mainHandItem = event.getPlayer().getInventory().getItemInMainHand();
+            if (mainHandItem.getType() != repairMaterial) return;
             if (event.getClickedBlock().getType() == Material.DAMAGED_ANVIL) {
                 event.getClickedBlock().setType(Material.CHIPPED_ANVIL);
             } else {
@@ -244,6 +251,7 @@ public class PlayerListener implements Listener {
             }
             if (repairSound != null)
                 event.getClickedBlock().getWorld().playSound(event.getClickedBlock().getLocation(),repairSound,SoundCategory.BLOCKS,1f,1f);
+            mainHandItem.setAmount(mainHandItem.getAmount() - 1);
         }
     }
 
@@ -409,17 +417,15 @@ public class PlayerListener implements Listener {
         event.message(VinUtils.parseString(serializedMessage));
     }
 
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onPlayerJoinMobCap(PlayerJoinEvent event) {
-        if (!VineriumCore.inst().getConfig().getBoolean("DynamicMobCaps.Enabled")) return;
-        VineriumCore.inst().getDynamicMobCapManager().updateWorldCaps(Bukkit.getOnlinePlayers().size());
+    /*@EventHandler(priority = EventPriority.MONITOR)
+    public void onPlayerJoinDynamic(PlayerJoinEvent event) {
+        VineriumCore.inst().getDynamicParamsManager().updateWorldCaps(Bukkit.getOnlinePlayers().size());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
-    public void onPlayerQuitMobCap(PlayerQuitEvent event) {
-        if (!VineriumCore.inst().getConfig().getBoolean("DynamicMobCaps.Enabled")) return;
-        VineriumCore.inst().getDynamicMobCapManager().updateWorldCaps(Bukkit.getOnlinePlayers().size() - 1);
-    }
+    public void onPlayerQuitDynamic(PlayerQuitEvent event) {
+        VineriumCore.inst().getDynamicParamsManager().updateWorldCaps(Bukkit.getOnlinePlayers().size() - 1);
+    }*/
 
     @EventHandler
     public void onGrindstoneClick(InventoryClickEvent event) {
@@ -440,6 +446,148 @@ public class PlayerListener implements Listener {
                 bookItem.setData(DataComponentTypes.STORED_ENCHANTMENTS,itemEnchantments);
                 grindstoneInventory.setResult(bookItem);
             }
+        }
+    }
+
+    @EventHandler
+    public void onPlayerOreBreak(BlockBreakEvent event) {
+        if (event.isCancelled())
+            return;
+        if (!VineriumCore.inst().getConfig().getBoolean("OreAlerts.Enabled"))
+            return;
+        if (VineriumCore.inst().getOreManager().getThresholdMaterials().containsKey(event.getBlock().getType())) {
+            if (event.getPlayer().permissionValue("vineriumcore.orealerts.bypass") == TriState.TRUE)
+                return;
+            if (event.getPlayer().getGameMode() == GameMode.CREATIVE || event.getPlayer().getGameMode() == GameMode.SPECTATOR)
+                return;
+            Location blockLoc = event.getBlock().getLocation();
+            if (VineriumCore.inst().getOreManager().getCheckedLocations().containsKey(blockLoc)
+                || VineriumCore.inst().getOreManager().getPlacedOres().contains(blockLoc))
+                return;
+            VineriumCore.inst().getOreManager().getPlacedOres().remove(blockLoc);
+            //String stringLoc = blockLoc.getWorld().getName()+","+blockLoc.x()+","+blockLoc.y()+","+blockLoc.z();
+            //if (VineriumCore.inst().getOreManager().getCheckedLocations().containsKey(stringLoc))
+            //    return;
+
+            long currentTick = VinUtils.getCurrentTick();
+            long timeToThreshold = VineriumCore.inst().getConfig().getLong("OreAlerts.TimeToThreshold",12000);
+            OreManager.BlockCounter blockCounter = new OreManager.BlockCounter();
+            Set<Location> blockLocations = blockCounter.getNearBlocks(event.getBlock().getLocation(),event.getBlock().getType());
+            if (blockLocations.isEmpty())
+                return;
+            for (Location location : blockLocations)
+                VineriumCore.inst().getOreManager().getCheckedLocations().put(location,currentTick);
+            List<OreManager.OreData> oreData = VineriumCore.inst().getOreManager().getPlayerOreData().getOrDefault(event.getPlayer().getName(),new ArrayList<>());
+            oreData.add(new OreManager.OreData(event.getBlock().getType(), blockLocations.size()));
+            int currentMaterialAmount = 0;
+            long oldestData = Long.MAX_VALUE;
+            oreData.removeIf(data -> data.getTimestamp() + timeToThreshold < currentTick);
+            for (OreManager.OreData data : oreData) {
+                currentMaterialAmount += data.getAmount();
+                if (data.getTimestamp() < oldestData)
+                    oldestData = data.getTimestamp();
+            }
+            VineriumCore.inst().getOreManager().getPlayerOreData().put(event.getPlayer().getName(),oreData);
+            List<Player> alertedPlayers = new ArrayList<>(Bukkit.getOnlinePlayers().stream()
+                    .filter(player -> player.hasPermission("vineriumcore.orealerts.show")).toList());
+            String parsedOreName = VineriumCore.inst().getOreManager()
+                    .getThresholdMaterials().get(event.getBlock().getType()).getRight() + "<lang:" + event.getBlock().getType().translationKey() + ">";
+            String hoverCommand = VineriumCore.inst().getConfig().getString("OreAlerts.HoverCommand","tp {1}")
+                    .replace("{1}",event.getPlayer().getName());
+            String hoverText = "<click:run_command:\"/" + hoverCommand +"\"><hover:show_text:'" +VineriumLib.inst().getLangManager().getLangLines()
+                    .get(Key.key("vineriumcore:ore_alert_hover_tooltip"))+ "'>" +VineriumLib.inst().getLangManager().getLangLines().get(Key.key("vineriumcore:ore_alert_hover"))+"</hover></click>";
+            Component smallAlertComponent = VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"ore_alert_small",
+                    event.getPlayer().getName(),Integer.toString(blockLocations.size()),parsedOreName,hoverText);
+            for (Player player : alertedPlayers) {
+                if (player.permissionValue("vineriumcore.orealerts.disablesmall") != TriState.TRUE) {
+                    player.sendMessage(smallAlertComponent);
+                    if (player.permissionValue("vineriumcore.orealerts.disablesmallsound") != TriState.TRUE) {
+                        player.playSound(VineriumCore.inst().getOreManager().getAlertSound(),player);
+                    }
+                }
+            }
+            if (currentMaterialAmount >= VineriumCore.inst().getOreManager().getThresholdMaterials().get(event.getBlock().getType()).getLeft()) {
+                long timeRange = currentTick - oldestData;
+                // Перевод в минуты. Всегда отображается минимум 1 минута
+                timeRange = timeRange / 20 / 60;
+                if (timeRange <= 0)
+                    timeRange = 1;
+                Component largeAlertComponent = VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"ore_alert_large",
+                        event.getPlayer().getName(),Integer.toString(currentMaterialAmount),parsedOreName,Long.toString(timeRange),hoverText);
+                for (Player player : alertedPlayers) {
+                    if (player.permissionValue("vineriumcore.orealerts.disablelarge") != TriState.TRUE) {
+                        player.sendMessage(largeAlertComponent);
+                        if (player.permissionValue("vineriumcore.orealerts.disablelargesound") != TriState.TRUE) {
+                            player.playSound(VineriumCore.inst().getOreManager().getAlertSound(),player);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onOreBlockPlace(BlockPlaceEvent event) {
+        if (event.isCancelled())
+            return;
+        if (!VineriumCore.inst().getConfig().getBoolean("OreAlerts.Enabled"))
+            return;
+        if (VineriumCore.inst().getOreManager().getThresholdMaterials().containsKey(event.getBlock().getType())) {
+            Location blockLoc = event.getBlock().getLocation();
+            //String stringLoc = blockLoc.getWorld().getName()+","+blockLoc.x()+","+blockLoc.y()+","+blockLoc.z();
+            VineriumCore.inst().getOreManager().getCheckedLocations().remove(blockLoc);
+            VineriumCore.inst().getOreManager().getPlacedOres().add(blockLoc);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerPortalTeleport(PlayerPortalEvent event) {
+        if (!VineriumCore.inst().getConfig().getBoolean("Tweaks.PortalRedirect.Enabled"))
+            return;
+        if (!VineriumCore.inst().getConfig().contains("Tweaks.PortalRedirect.Worlds."+event.getFrom().getWorld().getName()))
+            return;
+        event.setCancelled(true);
+        for (String command : VineriumCore.inst().getConfig().getStringList("Tweaks.PortalRedirect.Worlds."+event.getFrom().getWorld().getName()+".Commands")) {
+            Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(),command.replace("%player_name%",event.getPlayer().getName()));
+        }
+    }
+
+    @EventHandler
+    public void onPlayerMaceDamage(EntityDamageByEntityEvent event) {
+        if (!VineriumCore.inst().getConfig().getBoolean("Tweaks.MaceDenier.Enabled"))
+            return;
+        if (event.getDamager() instanceof Player player && player.getInventory().getItemInMainHand().getType() == Material.MACE) {
+            Component entityCustomNameComponent = event.getEntity().customName();
+            if (entityCustomNameComponent != null) {
+                String name = PlainTextComponentSerializer.plainText().serialize(entityCustomNameComponent);
+                if (VineriumCore.inst().getConfigManager().getMaceDenierCustomNames().contains(name))
+                    event.setDamage(1);
+            }
+        }
+    }
+
+    @EventHandler
+    public void onPlayerCraft(PrepareItemCraftEvent event) {
+        ItemStack originalResultItem = event.getInventory().getResult();
+        if (originalResultItem != null) {
+            if (VineriumCore.inst().getConfigManager().getItemLockMaterials().contains(originalResultItem.getType().name())) {
+                for (ItemStack materialItem : event.getInventory().getMatrix()) {
+                    if (materialItem != null && materialItem.getPersistentDataContainer().has(ConfigManager.getLockKey())) {
+                        event.getInventory().setResult(null);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onCartographyTableCraft(CartographyItemEvent event) {
+        if (event.getInventory().getResult() != null && VineriumCore.inst().getConfigManager()
+                .getItemLockMaterials().contains(event.getInventory().getResult().getType().name())) {
+            ItemStack mapItem = event.getInventory().getResult();
+            if (mapItem.getPersistentDataContainer().has(ConfigManager.getLockKey()))
+                event.setCancelled(true);
         }
     }
 }

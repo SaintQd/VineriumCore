@@ -7,7 +7,6 @@ depend: [VineriumLib]
 softdepend:
   - PlaceholderAPI
   - CMI
-  - DiscordSRV
   - WorldGuard
   - LiteBans
   - LuckPerms

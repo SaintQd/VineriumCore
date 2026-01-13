@@ -4,6 +4,7 @@ import net.kyori.adventure.key.Key;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 import org.saintqd.vineriumcore.commands.VinCommandsManager;
 import org.saintqd.vineriumcore.listeners.*;
 import org.saintqd.vineriumcore.managers.*;
@@ -24,8 +25,10 @@ public class VineriumCore extends JavaPlugin {
     private VinCorePlaceholders placeholders;
     private SuffixManager suffixManager;
     private PlayerManager playerManager;
-    private DynamicMobCapManager dynamicMobCapManager;
+    private DynamicParamsManager dynamicParamsManager;
     private HintManager hintManager;
+    private OreManager oreManager;
+    private BukkitTask dynamicParamsTask = null;
 
     // Совместимость с другими плагинами
     private boolean CMIEnabled = false;
@@ -54,8 +57,9 @@ public class VineriumCore extends JavaPlugin {
         this.configManager = new ConfigManager();
         this.suffixManager = new SuffixManager();
         this.playerManager = new PlayerManager();
-        this.dynamicMobCapManager = new DynamicMobCapManager();
+        this.dynamicParamsManager = new DynamicParamsManager();
         this.hintManager = new HintManager();
+        this.oreManager = new OreManager();
 
         this.configManager.checkConfigs();
 
@@ -115,7 +119,16 @@ public class VineriumCore extends JavaPlugin {
         VineriumLib.inst().getLangManager().registerLangLines(langLines);
 
         playerManager.loadParams(this);
-        dynamicMobCapManager.loadParams(this);
+        dynamicParamsManager.loadParams(this);
+        if (dynamicParamsTask != null)
+            dynamicParamsTask.cancel();
+        dynamicParamsTask = getServer().getScheduler().runTaskTimer(this,
+                () -> dynamicParamsManager.updateWorldCaps(Bukkit.getOnlinePlayers().size()),
+                1L,
+                getConfig().getLong("DynamicParamsUpdateTime",12000L));
+
+        configManager.loadParams(this);
+        configManager.getInjectedVillagerTrades().updateParams();
 
         long prevTime = System.currentTimeMillis();
 
@@ -134,9 +147,13 @@ public class VineriumCore extends JavaPlugin {
 
         VineriumLib.inst().getCustomGUIManager().unregisterGuis(this);
         VineriumLib.inst().getCustomGUIManager().registerGuis(this);
+
+        oreManager.updateData(this);
+        oreManager.loadData(this);
     }
 
     public void saveData() {
+        oreManager.updateData(this);
         VinUtils.sendDebugMessage(0,"Saving community suffixes data...");
         suffixManager.saveCommunitySuffixes();
         VinUtils.sendDebugMessage(0,"Saved "+suffixManager.getCommunitySuffixes().size()+" community suffixes.");
@@ -174,7 +191,11 @@ public class VineriumCore extends JavaPlugin {
         return luckPermsManager;
     }
 
-    public DynamicMobCapManager getDynamicMobCapManager() {
-        return dynamicMobCapManager;
+    public DynamicParamsManager getDynamicParamsManager() {
+        return dynamicParamsManager;
+    }
+
+    public OreManager getOreManager() {
+        return oreManager;
     }
 }

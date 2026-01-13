@@ -112,7 +112,7 @@ public class SuffixGUI extends VinGUI {
 
             inventory.setItem(menuPageSize-6, pageItem);
         }
-        if (loopIndex > page * menuPageSize - 9) {
+        if (loopIndex > page * (menuPageSize - 9)) {
             ItemStack pageItem = ItemStack.of(Material.PAPER);
             @Subst("minecraft:paper") String modelName = VineriumCore.inst().getSuffixManager().getMenuModels().getOrDefault("NextPageButton","paper");
             pageItem.setData(DataComponentTypes.ITEM_MODEL, Key.key(modelName));
