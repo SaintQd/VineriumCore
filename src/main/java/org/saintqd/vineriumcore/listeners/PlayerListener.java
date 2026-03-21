@@ -20,6 +20,8 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.kyori.adventure.util.TriState;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.bukkit.*;
+import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.*;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -38,20 +40,23 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.GrindstoneInventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.permissions.PermissionAttachmentInfo;
+import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.util.Vector;
 import org.intellij.lang.annotations.Subst;
 import org.saintqd.vineriumcore.VineriumCore;
-import org.saintqd.vineriumcore.managers.ConfigManager;
-import org.saintqd.vineriumcore.managers.OreManager;
-import org.saintqd.vineriumcore.managers.PlayerManager;
+import org.saintqd.vineriumcore.managers.*;
 import org.saintqd.vineriumcore.worldguard.Flags;
 import org.saintqd.vineriumlib.VineriumLib;
 import org.saintqd.vineriumlib.gui.holders.VinGUIHolder;
 import org.saintqd.vineriumlib.managers.VaultManager;
 import org.saintqd.vineriumlib.utils.VinUtils;
 
+import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class PlayerListener implements Listener {
@@ -92,53 +97,66 @@ public class PlayerListener implements Listener {
                     VineriumCore.inst().getHintManager().sendStarterHint(Audience.audience(event.getPlayer()), hintIndex);
             }
         }
+        MailbookManager mailbookManager = MailbookManager.INSTANCE;
+        if (mailbookManager.getUnreadMailbooks().containsKey(event.getPlayer().getUniqueId())) {
+            event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"mailbook_receive_message"));
+        }
 
-        if (!VineriumCore.inst().getConfig().getBoolean("Messages.Enabled"))
-            return;
-        event.joinMessage(null);
-        String joinMessage = null;
-        String joinMessageFormat = null;
-        if (event.getPlayer().hasPlayedBefore()) {
-            if (event.getPlayer().permissionValue("vineriumcore.hidejoinmessage") == TriState.TRUE)
-                return;
-            // Фикс скрытия сообщений входа/выхода для системы ваниша в CMI
-            if (VineriumCore.inst().isCMIEnabled()) {
-                CMIVanish vanish = CMI.getInstance().getVanishManager().getVanish(event.getPlayer().getUniqueId());
-                if (vanish != null && vanish.getState(VanishAction.isVanished).is() && !vanish.getState(VanishAction.informOnJoin).is())
-                    return;
+        if (CalendarEventsManager.Companion.getInstance().getCalendar().containsKey(LocalDate.now().getDayOfYear())) {
+            List<String> currentEventsList = CalendarEventsManager.Companion.getInstance().getCalendar().get(LocalDate.now().getDayOfYear());
+            event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"calendar_event_message_format"));
+            for (String eventName : currentEventsList) {
+                CalendarEventsManager.VinCalendarEvent timedEvent = CalendarEventsManager.Companion.getInstance().getEvents().get(eventName);
+                event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().
+                        parseLangString(VineriumCore.inst(),"calendar_event_message_list_format",timedEvent.getDisplayName()));
             }
-            List<String> possibleJoinMessage = event.getPlayer().getEffectivePermissions().stream().map(PermissionAttachmentInfo::getPermission)
-                    .filter(permission -> permission.startsWith("meta.join-message.")).toList();
-            if (!possibleJoinMessage.isEmpty()
-                    && event.getPlayer().hasPermission("vineriumcore.joinmessage")
-                    && VineriumCore.inst().getConfig().getBoolean("Messages.Join.Enabled")) {
-                String joinMessagePermission = possibleJoinMessage.getFirst();
-                joinMessage = joinMessagePermission.replace("meta.join-message.", "").replace("\"", "");
-                joinMessage = Pattern.compile("╝+(.)?").matcher(joinMessage).replaceAll(mr -> mr.group(1).toUpperCase());
-                joinMessageFormat = VineriumCore.inst().getConfig().getString("Messages.Join.Format", "<white>>> <gray>[message]");
-            }
-            else if (VineriumCore.inst().getConfig().getBoolean("Messages.DefaultJoin.Enabled")) {
-                joinMessage = VineriumCore.inst().getConfig().getString("Messages.DefaultJoin.Format", null);
-                joinMessageFormat = joinMessage;
-            }
+            event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"calendar_event_message_hint_format"));
         }
-        else if (VineriumCore.inst().getConfig().getBoolean("Messages.FirstJoin.Enabled")) {
-            joinMessage = VineriumCore.inst().getConfig().getString("Messages.FirstJoin.Format", null);
-            joinMessageFormat = joinMessage;
-        }
-        if (joinMessage == null || joinMessage.isEmpty())
-            return;
-        joinMessageFormat = joinMessageFormat.replace("[message]", joinMessage).replace("[dot]",".");
-        joinMessageFormat = joinMessageFormat.replace("*", VineriumCore.inst().getConfig().getString("Messages.NicknameFormat", event.getPlayer().getName()));
-        // Обрабатываем плейсхолдеры дважды, т.к. после первой обработки могут остаться вложенные плейсхолдеры
-        joinMessageFormat = (VineriumCore.inst().getPlaceholders() != null)
-                ? PlaceholderAPI.setPlaceholders(event.getPlayer(), PlaceholderAPI.setPlaceholders(event.getPlayer(),joinMessageFormat))
-                : joinMessageFormat;
-        event.joinMessage(VinUtils.parseString(joinMessageFormat));
 
         if (event.getPlayer().permissionValue("vineriumcore.pvpenabled") == TriState.TRUE) {
             PlayerManager playerManager = VineriumCore.inst().getPlayerManager();
             playerManager.getPvpModePlayers().add(event.getPlayer());
+        }
+
+        if (VineriumCore.inst().getConfig().getBoolean("Messages.Enabled")) {
+            event.joinMessage(null);
+            String joinMessage = null;
+            String joinMessageFormat = null;
+            if (event.getPlayer().hasPlayedBefore()) {
+                if (event.getPlayer().permissionValue("vineriumcore.hidejoinmessage") == TriState.TRUE)
+                    return;
+                // Фикс скрытия сообщений входа/выхода для системы ваниша в CMI
+                if (VineriumCore.inst().isCMIEnabled()) {
+                    CMIVanish vanish = CMI.getInstance().getVanishManager().getVanish(event.getPlayer().getUniqueId());
+                    if (vanish != null && vanish.getState(VanishAction.isVanished).is() && !vanish.getState(VanishAction.informOnJoin).is())
+                        return;
+                }
+                List<String> possibleJoinMessage = event.getPlayer().getEffectivePermissions().stream().map(PermissionAttachmentInfo::getPermission)
+                        .filter(permission -> permission.startsWith("meta.join-message.")).toList();
+                if (!possibleJoinMessage.isEmpty()
+                        && event.getPlayer().hasPermission("vineriumcore.joinmessage")
+                        && VineriumCore.inst().getConfig().getBoolean("Messages.Join.Enabled")) {
+                    String joinMessagePermission = possibleJoinMessage.getFirst();
+                    joinMessage = joinMessagePermission.replace("meta.join-message.", "").replace("\"", "");
+                    joinMessage = Pattern.compile("╝+(.)?").matcher(joinMessage).replaceAll(mr -> mr.group(1).toUpperCase());
+                    joinMessageFormat = VineriumCore.inst().getConfig().getString("Messages.Join.Format", "<white>>> <gray>[message]");
+                } else if (VineriumCore.inst().getConfig().getBoolean("Messages.DefaultJoin.Enabled")) {
+                    joinMessage = VineriumCore.inst().getConfig().getString("Messages.DefaultJoin.Format", null);
+                    joinMessageFormat = joinMessage;
+                }
+            } else if (VineriumCore.inst().getConfig().getBoolean("Messages.FirstJoin.Enabled")) {
+                joinMessage = VineriumCore.inst().getConfig().getString("Messages.FirstJoin.Format", null);
+                joinMessageFormat = joinMessage;
+            }
+            if (joinMessage == null || joinMessage.isEmpty())
+                return;
+            joinMessageFormat = joinMessageFormat.replace("[message]", joinMessage).replace("[dot]", ".");
+            joinMessageFormat = joinMessageFormat.replace("*", VineriumCore.inst().getConfig().getString("Messages.NicknameFormat", event.getPlayer().getName()));
+            // Обрабатываем плейсхолдеры дважды, т.к. после первой обработки могут остаться вложенные плейсхолдеры
+            joinMessageFormat = (VineriumCore.inst().getPlaceholders() != null)
+                    ? PlaceholderAPI.setPlaceholders(event.getPlayer(), PlaceholderAPI.setPlaceholders(event.getPlayer(), joinMessageFormat))
+                    : joinMessageFormat;
+            event.joinMessage(VinUtils.parseString(joinMessageFormat));
         }
     }
 
@@ -146,41 +164,6 @@ public class PlayerListener implements Listener {
     public void onPlayerQuitMessage(PlayerQuitEvent event) {
         VaultManager vaultManager = VineriumLib.inst().getVaultManager();
         if (vaultManager == null || vaultManager.getChatProvider() == null) return;
-        if (!VineriumCore.inst().getConfig().getBoolean("Messages.Enabled"))
-            return;
-        event.quitMessage(null);
-        if (event.getPlayer().permissionValue("vineriumcore.hideleavemessage") == TriState.TRUE)
-            return;
-        // Фикс скрытия сообщений входа/выхода для системы ваниша в CMI
-        if (VineriumCore.inst().isCMIEnabled()) {
-            CMIVanish vanish = CMI.getInstance().getVanishManager().getVanish(event.getPlayer().getUniqueId());
-            if (vanish != null && vanish.getState(VanishAction.isVanished).is() && !vanish.getState(VanishAction.informOnLeave).is())
-                return;
-        }
-        List<String> possibleLeaveMessage = event.getPlayer().getEffectivePermissions().stream().map(PermissionAttachmentInfo::getPermission)
-                .filter(permission -> permission.startsWith("meta.leave-message.")).toList();
-        String leaveMessage = null;
-        String leaveMessageFormat = null;
-        if (!possibleLeaveMessage.isEmpty()
-                && event.getPlayer().hasPermission("vineriumcore.leavemessage")
-                && VineriumCore.inst().getConfig().getBoolean("Messages.Leave.Enabled")) {
-            String leaveMessagePermission = possibleLeaveMessage.getFirst();
-            leaveMessage = leaveMessagePermission.replace("meta.leave-message.", "").replace("\"", "");
-            leaveMessage = Pattern.compile("╝+(.)?").matcher(leaveMessage).replaceAll(mr -> mr.group(1).toUpperCase());
-            leaveMessageFormat = VineriumCore.inst().getConfig().getString("Messages.Leave.Format", "<white<<< <gray>[message]");
-        }
-        else if (VineriumCore.inst().getConfig().getBoolean("Messages.DefaultLeave.Enabled")) {
-            leaveMessage = VineriumCore.inst().getConfig().getString("Messages.DefaultLeave.Format", null);
-            leaveMessageFormat = leaveMessage;
-        }
-        if (leaveMessage == null || leaveMessage.isEmpty())
-            return;
-        leaveMessageFormat = leaveMessageFormat.replace("[message]", leaveMessage).replace("[dot]",".");
-        leaveMessageFormat = leaveMessageFormat.replace("*", VineriumCore.inst().getConfig().getString("Messages.NicknameFormat", event.getPlayer().getName()));
-        leaveMessageFormat = (VineriumCore.inst().getPlaceholders() != null)
-                ? PlaceholderAPI.setPlaceholders(event.getPlayer(), PlaceholderAPI.setPlaceholders(event.getPlayer(),leaveMessageFormat))
-                : leaveMessageFormat;
-        event.quitMessage(VinUtils.parseString(leaveMessageFormat));
 
         PlayerManager playerManager = VineriumCore.inst().getPlayerManager();
         if (playerManager.getPvpModePlayers().contains(event.getPlayer())) {
@@ -189,6 +172,41 @@ public class PlayerListener implements Listener {
         }
         else {
             vaultManager.getPermissionProvider().playerRemove(null,event.getPlayer(),"vineriumcore.pvpenabled");
+        }
+
+        if (VineriumCore.inst().getConfig().getBoolean("Messages.Enabled")) {
+            event.quitMessage(null);
+            if (event.getPlayer().permissionValue("vineriumcore.hideleavemessage") == TriState.TRUE)
+                return;
+            // Фикс скрытия сообщений входа/выхода для системы ваниша в CMI
+            if (VineriumCore.inst().isCMIEnabled()) {
+                CMIVanish vanish = CMI.getInstance().getVanishManager().getVanish(event.getPlayer().getUniqueId());
+                if (vanish != null && vanish.getState(VanishAction.isVanished).is() && !vanish.getState(VanishAction.informOnLeave).is())
+                    return;
+            }
+            List<String> possibleLeaveMessage = event.getPlayer().getEffectivePermissions().stream().map(PermissionAttachmentInfo::getPermission)
+                    .filter(permission -> permission.startsWith("meta.leave-message.")).toList();
+            String leaveMessage = null;
+            String leaveMessageFormat = null;
+            if (!possibleLeaveMessage.isEmpty()
+                    && event.getPlayer().hasPermission("vineriumcore.leavemessage")
+                    && VineriumCore.inst().getConfig().getBoolean("Messages.Leave.Enabled")) {
+                String leaveMessagePermission = possibleLeaveMessage.getFirst();
+                leaveMessage = leaveMessagePermission.replace("meta.leave-message.", "").replace("\"", "");
+                leaveMessage = Pattern.compile("╝+(.)?").matcher(leaveMessage).replaceAll(mr -> mr.group(1).toUpperCase());
+                leaveMessageFormat = VineriumCore.inst().getConfig().getString("Messages.Leave.Format", "<white<<< <gray>[message]");
+            } else if (VineriumCore.inst().getConfig().getBoolean("Messages.DefaultLeave.Enabled")) {
+                leaveMessage = VineriumCore.inst().getConfig().getString("Messages.DefaultLeave.Format", null);
+                leaveMessageFormat = leaveMessage;
+            }
+            if (leaveMessage == null || leaveMessage.isEmpty())
+                return;
+            leaveMessageFormat = leaveMessageFormat.replace("[message]", leaveMessage).replace("[dot]", ".");
+            leaveMessageFormat = leaveMessageFormat.replace("*", VineriumCore.inst().getConfig().getString("Messages.NicknameFormat", event.getPlayer().getName()));
+            leaveMessageFormat = (VineriumCore.inst().getPlaceholders() != null)
+                    ? PlaceholderAPI.setPlaceholders(event.getPlayer(), PlaceholderAPI.setPlaceholders(event.getPlayer(), leaveMessageFormat))
+                    : leaveMessageFormat;
+            event.quitMessage(VinUtils.parseString(leaveMessageFormat));
         }
     }
 
@@ -325,6 +343,18 @@ public class PlayerListener implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void anvilEvent(PrepareAnvilEvent event) {
+        String renameText = event.getView().getRenameText();
+        if (renameText != null && !renameText.isEmpty()
+                && VineriumCore.inst().getConfig().getBoolean("CommandFilter.Enabled") && !event.getView().getPlayer().hasPermission("vineriumcore.commandfilter.bypass")) {
+            for (String regex : VineriumCore.inst().getConfig().getStringList("CommandFilter.Regex")) {
+                Pattern pattern = Pattern.compile(regex);
+                Matcher matcher = pattern.matcher(renameText);
+                if (matcher.find()) {
+                    event.setResult(null);
+                    return;
+                }
+            }
+        }
         if (!VineriumCore.inst().getConfig().getBoolean("Tweaks.RepairCostFix.Enabled")) return;
         if (event.getView().getMaximumRepairCost() != Integer.MAX_VALUE)
             realMaxRepairCosts.put(event.getInventory(),event.getView().getMaximumRepairCost());
@@ -362,9 +392,23 @@ public class PlayerListener implements Listener {
         }
     }
 
+    private final HashMap<UUID,Set<Long>> deathCounter = new HashMap<>();
+
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
-        if (Boolean.FALSE.equals(event.getPlayer().getWorld().getGameRuleValue(GameRule.SHOW_DEATH_MESSAGES))) return;
+
+        if (VineriumCore.inst().getConfig().getBoolean("Tweaks.HideDeathMessages.Enabled",true)) {
+            long period = VineriumCore.inst().getConfig().getLong("Tweaks.HideDeathMessages.Period",12000);
+            int minDeaths = VineriumCore.inst().getConfig().getInt("Tweaks.HideDeathMessages.MinDeaths",3);
+            Set<Long> deathCounterPerPlayer = deathCounter.getOrDefault(event.getEntity().getUniqueId(),new HashSet<>());
+            deathCounterPerPlayer.removeIf( time -> time + period < VinUtils.getCurrentTick());
+            deathCounterPerPlayer.add(VinUtils.getCurrentTick());
+            if (deathCounterPerPlayer.size() > minDeaths)
+                event.setShowDeathMessages(false);
+            deathCounter.put(event.getEntity().getUniqueId(),deathCounterPerPlayer);
+        }
+
+        if (!event.getShowDeathMessages()) return;
         if (!VineriumCore.inst().getConfig().getBoolean("Messages.Death.Enabled",true)) return;
 
         Component originalDeathMessage = event.deathMessage();
@@ -389,7 +433,7 @@ public class PlayerListener implements Listener {
 
     @EventHandler
     public void onAdvancementReceive(PlayerAdvancementDoneEvent event) {
-        if (Boolean.FALSE.equals(event.getPlayer().getWorld().getGameRuleValue(GameRule.ANNOUNCE_ADVANCEMENTS))) return;
+        if (Boolean.FALSE.equals(event.getPlayer().getWorld().getGameRuleValue(GameRules.SHOW_ADVANCEMENT_MESSAGES))) return;
         if (!VineriumCore.inst().getConfig().getBoolean("Messages.Advancement.Enabled",true)) return;
 
         List<String> showTypes = VineriumCore.inst().getConfig().getStringList("Messages.Advancement.ShowTypes");
@@ -542,13 +586,53 @@ public class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerPortalTeleport(PlayerPortalEvent event) {
-        if (!VineriumCore.inst().getConfig().getBoolean("Tweaks.PortalRedirect.Enabled"))
+        RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+        LocalPlayer localPlayer = WorldGuardPlugin.inst().wrapPlayer(event.getPlayer());
+        switch (event.getCause()) {
+            case NETHER_PORTAL -> {
+                if (!container.createQuery().testState(localPlayer.getLocation(),localPlayer, Flags.NETHER_PORTAL_TELEPORT))
+                    event.setCancelled(true);
+            }
+            case END_PORTAL -> {
+                if (!container.createQuery().testState(localPlayer.getLocation(),localPlayer, Flags.END_PORTAL_TELEPORT))
+                    event.setCancelled(true);
+            }
+        }
+        if (VineriumCore.inst().getConfig().getBoolean("Tweaks.PortalRedirect.Enabled")) {
+            if (VineriumCore.inst().getConfig().contains("Tweaks.PortalRedirect.Worlds." + event.getFrom().getWorld().getName())) {
+                event.setCancelled(true);
+                for (String command : VineriumCore.inst().getConfig().getStringList("Tweaks.PortalRedirect.Worlds." + event.getFrom().getWorld().getName() + ".Commands")) {
+                    Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), command.replace("%player_name%", event.getPlayer().getName()));
+                }
+            }
+        }
+        if (VineriumCore.inst().getConfig().getBoolean("CustomPortals.Enabled") && event.getCause() == PlayerTeleportEvent.TeleportCause.NETHER_PORTAL) {
+            HashMap<Material,Integer> foundCornerBlocks = ConfigManager.PortalCornerBlocksFinder.findCornerBlocks(event.getFrom().toBlockLocation());
+            for (Material foundBlockType : foundCornerBlocks.keySet()) {
+                if (VineriumCore.inst().getConfig().contains("CustomPortals.List."+foundBlockType.name())) {
+                    int requiredAmount = VineriumCore.inst().getConfig().getInt("CustomPortals.List."+foundBlockType.name()+".Amount",1);
+                    if (foundCornerBlocks.get(foundBlockType) >= requiredAmount) {
+                        event.setCancelled(true);
+                        for (String command : VineriumCore.inst().getConfig().getStringList("CustomPortals.List."+foundBlockType.name()+".Commands")) {
+                            Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), command.replace("%player_name%", event.getPlayer().getName()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onEntityPortalTeleport(EntityPortalEvent event) {
+        if (event.getEntity() instanceof Player)
             return;
-        if (!VineriumCore.inst().getConfig().contains("Tweaks.PortalRedirect.Worlds."+event.getFrom().getWorld().getName()))
+        if (!VineriumCore.inst().getConfig().getBoolean("Tweaks.EntityPortalBlock.Enabled"))
             return;
-        event.setCancelled(true);
-        for (String command : VineriumCore.inst().getConfig().getStringList("Tweaks.PortalRedirect.Worlds."+event.getFrom().getWorld().getName()+".Commands")) {
-            Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(),command.replace("%player_name%",event.getPlayer().getName()));
+        if ((event.getPortalType() == PortalType.NETHER && VineriumCore.inst().getConfig().getBoolean("Tweaks.EntityPortalBlock.EnabledNether"))
+            || (event.getPortalType() == PortalType.ENDER && VineriumCore.inst().getConfig().getBoolean("Tweaks.EntityPortalBlock.EnabledEnd"))) {
+            event.setCancelled(true);
+            if (VineriumCore.inst().getConfig().getBoolean("Tweaks.EntityPortalBlock.Remove"))
+                event.getEntity().remove();
         }
     }
 
@@ -588,6 +672,75 @@ public class PlayerListener implements Listener {
             ItemStack mapItem = event.getInventory().getResult();
             if (mapItem.getPersistentDataContainer().has(ConfigManager.getLockKey()))
                 event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onPlayerCommandExecute(PlayerCommandPreprocessEvent event) {
+        if (VineriumCore.inst().getConfig().getBoolean("CommandFilter.Enabled") && !event.getPlayer().hasPermission("vineriumcore.commandfilter.bypass")) {
+            for (String regex : VineriumCore.inst().getConfig().getStringList("CommandFilter.Regex")) {
+                Pattern pattern = Pattern.compile(regex);
+                Matcher matcher = pattern.matcher(event.getMessage());
+                if (matcher.find()) {
+                    event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "command_filter_message"));
+                    event.setCancelled(true);
+                    return;
+                }
+            }
+        }
+        ItemStack handItem = event.getPlayer().getInventory().getItemInMainHand();
+        if (handItem.getType() != Material.AIR && handItem.getPersistentDataContainer().has(ConfigManager.getLockKey())) {
+            List<String> blockedCommands = VineriumCore.inst().getConfig().getStringList("Tweaks.ItemLock.BlockedCommands");
+            for (String command : blockedCommands) {
+                if (event.getMessage().startsWith("/" + command)) {
+                    event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "lock_item_command_blocked"));
+                    event.setCancelled(true);
+                    return;
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onPlayerDamageItem(PlayerItemDamageEvent event) {
+        if (event.getItem().getPersistentDataContainer().has(ItemSkinManager.ITEM_SKIN_KEY)) {
+            String skinName = event.getItem().getPersistentDataContainer().get(ItemSkinManager.ITEM_SKIN_KEY, PersistentDataType.STRING);
+            ItemSkinManager.ItemSkin itemSkin = ItemSkinManager.INSTANCE.getItemSkins().get(skinName);
+            if (itemSkin != null) {
+                if (!itemSkin.permission().isEmpty() && !event.getPlayer().hasPermission(itemSkin.permission())) {
+                    event.getItem().editPersistentDataContainer(pdc -> pdc.remove(ItemSkinManager.ITEM_SKIN_KEY));
+                    event.getItem().resetData(DataComponentTypes.ITEM_MODEL);
+                    event.getItem().resetData(DataComponentTypes.EQUIPPABLE);
+                    event.getItem().resetData(DataComponentTypes.CUSTOM_MODEL_DATA);
+                    event.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "item_skin_no_permission"));
+                }
+            }
+        }
+    }
+
+    @EventHandler
+    public void onPlayerItemDrop(PlayerDropItemEvent event) {
+        String originalType = event.getItemDrop().getItemStack().getType().name();
+        if (VineriumCore.inst().getConfigManager().getCauldronTransforms().containsKey(originalType)) {
+            Item droppedItem = event.getItemDrop();
+            Material requiredMaterial = VineriumCore.inst().getConfig().getBoolean("Tweaks.CauldronTransform.RequireWater", true)
+                    ? Material.WATER_CAULDRON
+                    : Material.CAULDRON;
+            Material newMaterial = Material.valueOf(VineriumCore.inst().getConfigManager().getCauldronTransforms().get(originalType));
+            Bukkit.getScheduler().scheduleSyncDelayedTask(VineriumCore.inst(), () -> {
+                if (droppedItem.isValid()) {
+                    Location location = droppedItem.getLocation();
+                    Location blockLocation = location.toBlockLocation();
+                    Block block = blockLocation.getBlock();
+                    if (block.getType() == requiredMaterial) {
+                        ItemStack originalItemStack = droppedItem.getItemStack();
+                        droppedItem.setCanPlayerPickup(true);
+                        droppedItem.setItemStack(ItemStack.of(newMaterial,originalItemStack.getAmount()));
+                        location.getWorld().playSound(location,Sound.ENTITY_PLAYER_SPLASH,SoundCategory.BLOCKS,1f,2f);
+                        location.getWorld().spawnParticle(Particle.BUBBLE_POP,location.add(0,1,0),20,0.3,0.2,0.3,0.0);
+                        droppedItem.setVelocity(new Vector(0,0.45,0));
+                    }
+                }}, 20L);
         }
     }
 }

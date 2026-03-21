@@ -1,3 +1,12 @@
+$onceKeys:
+  - 'DynamicMobCaps.Categories'
+  - 'DynamicDistance.View'
+  - 'DynamicDistance.Simulation'
+  - 'OreAlerts.Materials'
+  - 'Tweaks.VillagerManualBreed.Items'
+  - 'Tweaks.PortalRedirect.Worlds'
+  - 'Tweaks.CauldronTransform.TransformList'
+  - 'CustomPortals.List'
 Language: ru_ru
 Messages:
   Enabled: true
@@ -18,6 +27,12 @@ Messages:
     Format: ' <#82ECB4>[❤] • * впервые на сервере'
   MaxLength: 100
   NicknameFormat: '%player_name% <white>%luckperms_suffix%</white>'
+  Me:
+    Distance: 25
+    Format: '<#EF97D1>* <#E7A6FF>%name% <#EF97D1>%message%'
+  Try:
+    Distance: 25
+    Format: '<#EF97D1>* <#E7A6FF>%name% <#EF97D1>%message% [<reset>%result%<#EF97D1>]'
   RightClickNickname:
     Enabled: true
     HideInvisible: true
@@ -52,46 +67,46 @@ DynamicMobCaps:
     MONSTER:
       ALL:
         '0': 25
-        '25': 20
-        '50': 15
-        '75': 10
-        '100': 5
-      ANIMAL:
-        ALL:
-          '0': 8
-          '25': 6
-          '50': 4
-          '75': 2
-      WATER_ANIMAL:
-        ALL:
-          '0': 8
-          '25': 6
-          '50': 4
-          '75': 2
-      WATER_AMBIENT:
-        ALL:
-          '0': 8
-          '25': 6
-          '50': 4
-          '75': 2
-      WATER_UNDERGROUND_CREATURE:
-        ALL:
-          '0': 3
-          '25': 2
-          '50': 1
-          '75': 6
-      AXOLOTL:
-        ALL:
-          '0': 5
-          '25': 4
-          '50': 3
-          '75': 2
-          '100': 1
-      AMBIENT:
-        ALL:
-          '0': 3
-          '25': 2
-          '50': 1
+        '20': 20
+        '40': 15
+        '60': 10
+        '75': 5
+    ANIMAL:
+      ALL:
+        '0': 8
+        '20': 6
+        '40': 4
+        '60': 2
+    WATER_ANIMAL:
+      ALL:
+        '0': 8
+        '20': 6
+        '40': 4
+        '60': 2
+    WATER_AMBIENT:
+      ALL:
+        '0': 8
+        '20': 6
+        '40': 4
+        '60': 2
+    WATER_UNDERGROUND_CREATURE:
+      ALL:
+        '0': 3
+        '25': 2
+        '50': 1
+        '75': 6
+    AXOLOTL:
+      ALL:
+        '0': 5
+        '20': 4
+        '40': 3
+        '60': 2
+        '75': 1
+    AMBIENT:
+      ALL:
+        '0': 3
+        '20': 2
+        '40': 1
 DynamicDistance:
   Enabled: true
   View:
@@ -170,6 +185,38 @@ Tweaks:
     Materials:
       - 'NETHERITE_UPGRADE_SMITHING_TEMPLATE'
       - 'FILLED_MAP'
+    BlockedCommands:
+      - 'draw'
+  EntityPortalBlock:
+    Enabled: false
+    EnabledNether: false
+    EnabledEnd: true
+    Remove: true
+  HideDeathMessages:
+    Enabled: true
+    MinDeaths: 3
+    Period: 12000
+  CauldronTransform:
+    Enabled: true
+    RequireWater: true
+    TransformList:
+      WHITE_CONCRETE_POWDER: WHITE_CONCRETE
+      LIGHT_GRAY_CONCRETE_POWDER: LIGHT_GRAY_CONCRETE
+      GRAY_CONCRETE_POWDER: GRAY_CONCRETE
+      BLACK_CONCRETE_POWDER: BLACK_CONCRETE
+      BROWN_CONCRETE_POWDER: BROWN_CONCRETE
+      RED_CONCRETE_POWDER: RED_CONCRETE
+      ORANGE_CONCRETE_POWDER: ORANGE_CONCRETE
+      YELLOW_CONCRETE_POWDER: YELLOW_CONCRETE
+      LIME_CONCRETE_POWDER: LIME_CONCRETE
+      GREEN_CONCRETE_POWDER: GREEN_CONCRETE
+      CYAN_CONCRETE_POWDER: CYAN_CONCRETE
+      LIGHT_BLUE_CONCRETE_POWDER: LIGHT_BLUE_CONCRETE
+      BLUE_CONCRETE_POWDER: BLUE_CONCRETE
+      PURPLE_CONCRETE_POWDER: PURPLE_CONCRETE
+      MAGENTA_CONCRETE_POWDER: MAGENTA_CONCRETE
+      PINK_CONCRETE_POWDER: PINK_CONCRETE
+      DIRT: MUD
 Compatibility:
   LiteBans:
     Enabled: true
@@ -214,3 +261,42 @@ OreAlerts:
   HoverCommand: 'cmi tp {1}'
   TimeToThreshold: 12000
   Sound: "entity.player.levelup,2"
+CommandFilter:
+  Enabled: true
+  Regex:
+    - '[@#ꐙꐔꐒꐓꐕꐐꐑ᠀ᘐ҂ォ୭⩩⇴㚼⼓⏍ꗃ૪⟆ᦔリ꒰⩇↹୭ରୁ୦ದಷಸಬನರಣಹಗಪಶೋಳುೀ水小漢对頁字海陆美도연강대낮ꐖꐗꐘꐚꐛꐜꐝꐞꐟꐠꐡꐢꐣꐤꐥꐦꐧꐨꐩꐪ]'
+Mailbooks:
+  TextPrefix: ''
+  ExpireTime: 12096000
+  MailbookKey: ''
+DisableDrops:
+  Enabled: false
+  Materials:
+    - COAL_ORE
+    - DEEPSLATE_COAL_ORE
+    - IRON_ORE
+    - DEEPSLATE_IRON_ORE
+    - COPPER_ORE
+    - DEEPSLATE_COPPER_ORE
+    - EMERALD_ORE
+    - DEEPSLATE_EMERALD_ORE
+    - GOLD_ORE
+    - DEEPSLATE_GOLD_ORE
+    - REDSTONE_ORE
+    - DEEPSLATE_REDSTONE_ORE
+    - LAPIS_ORE
+    - DEEPSLATE_LAPIS_ORE
+    - DIAMOND_ORE
+    - DEEPSLATE_DIAMOND_ORE
+    - ANCIENT_DEBRIS
+CustomPortals:
+  Enabled: true
+  List:
+    WAXED_COPPER_BLOCK:
+      Amount: 4
+      Commands: []
+    COPPER_BLOCK:
+      Amount: 4
+      Commands: []
+ConfirmationStatus:
+  Format: '✦ '

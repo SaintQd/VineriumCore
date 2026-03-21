@@ -1,10 +1,6 @@
 package org.saintqd.vineriumcore.managers;
 
-import net.luckperms.api.LuckPerms;
-import net.luckperms.api.cacheddata.CachedMetaData;
-import net.luckperms.api.model.user.User;
-import net.luckperms.api.node.Node;
-import net.luckperms.api.node.NodeType;
+import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -14,24 +10,21 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
+@Getter
 public class LuckPermsManager {
 
-    private final LuckPerms luckPerms;
+    private final net.luckperms.api.LuckPerms luckPerms;
 
     public LuckPermsManager() {
-        this.luckPerms = Bukkit.getServicesManager().getRegistration(LuckPerms.class).getProvider();
-    }
-
-    public LuckPerms getLuckPerms() {
-        return luckPerms;
+        this.luckPerms = Bukkit.getServicesManager().getRegistration(net.luckperms.api.LuckPerms.class).getProvider();
     }
 
     public String getVipUntil(Player player) {
-        User user = luckPerms.getPlayerAdapter(Player.class).getUser(player);
+        net.luckperms.api.model.user.User user = luckPerms.getPlayerAdapter(Player.class).getUser(player);
         String vipGroupName = VineriumCore.inst().getConfig().getString("Compatibility.LuckPerms.VipGroupName","");
         if (vipGroupName.isEmpty())
             return "-";
-        for (Node node : user.getDistinctNodes()) {
+        for (net.luckperms.api.node.Node node : user.getDistinctNodes()) {
             if (node.getKey().equals("group."+vipGroupName)) {
                 if (node.getExpiry() == null)
                     return "∞";
@@ -48,14 +41,14 @@ public class LuckPermsManager {
     public void copyPermissions(OfflinePlayer oldPlayer, OfflinePlayer newPlayer) {
         luckPerms.getUserManager().loadUser(oldPlayer.getUniqueId()).thenAcceptAsync(user -> {
             luckPerms.getUserManager().modifyUser(newPlayer.getUniqueId(), newUser -> {
-               for (Node node : user.getNodes())
+               for (net.luckperms.api.node.Node node : user.getNodes())
                    newUser.data().add(node);
             });
         });
     }
 
     public String getSuffix(Player player) {
-        User user = luckPerms.getPlayerAdapter(Player.class).getUser(player);
+        net.luckperms.api.model.user.User user = luckPerms.getPlayerAdapter(Player.class).getUser(player);
         String suffixValue = user.getCachedData().getMetaData().getMetaValue("suffix-symbol");
         return suffixValue != null ? suffixValue : "";
     }

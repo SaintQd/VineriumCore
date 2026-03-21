@@ -27,3 +27,12 @@ dependencies:
     LuckPerms:
       load: BEFORE
       required: false
+    Nexo:
+      load: BEFORE
+      required: false
+    MythicMobs:
+      load: BEFORE
+      required: false
+    HMCCosmetics:
+      load: BEFORE
+      required: false

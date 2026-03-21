@@ -1,5 +1,6 @@
 package org.saintqd.vineriumcore.listeners;
 
+import com.destroystokyo.paper.event.block.BlockDestroyEvent;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -115,6 +116,26 @@ public class EntityListener implements Listener {
             firstEntity.getLocation().createExplosion(1.0f,false,false);
             if (firstEntity.isValid())
                 firstEntity.remove();
+        }
+    }
+
+    @EventHandler
+    public void onDisabledBlockDestroy(BlockDestroyEvent event) {
+        if (event.isCancelled())
+            return;
+        String blockType = event.getBlock().getType().name().toUpperCase();
+        if (VineriumCore.inst().getConfigManager().getDisabledDrops().contains(blockType)) {
+            event.setWillDrop(false);
+        }
+    }
+
+    @EventHandler
+    public void onDisabledBlockBreak(BlockBreakEvent event) {
+        if (event.isCancelled())
+            return;
+        String blockType = event.getBlock().getType().name().toUpperCase();
+        if (VineriumCore.inst().getConfigManager().getDisabledDrops().contains(blockType)) {
+            event.setDropItems(false);
         }
     }
 

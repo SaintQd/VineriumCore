@@ -2,15 +2,21 @@ package org.saintqd.vineriumcore.placeholders;
 
 import me.clip.placeholderapi.PlaceholderAPI;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
-import net.milkbowl.vault.permission.Permission;
+import net.kyori.adventure.util.TriState;
 import org.bukkit.entity.Player;
+import org.jspecify.annotations.NonNull;
 import org.saintqd.vineriumcore.VineriumCore;
 import org.saintqd.vineriumcore.managers.PlayerManager;
+import org.saintqd.vineriumcore.suffix.VinSuffix;
 import org.saintqd.vineriumlib.VineriumLib;
+
+import java.util.HashMap;
+import java.util.function.BiFunction;
 
 public class VinCorePlaceholders extends PlaceholderExpansion {
 
     private final VineriumCore plugin;
+    private final HashMap<String, BiFunction<VineriumCore,Player,String>> placeholders = new HashMap<>();
 
     public VinCorePlaceholders(VineriumCore plugin){
         this.plugin = plugin;
@@ -27,65 +33,67 @@ public class VinCorePlaceholders extends PlaceholderExpansion {
     }
 
     @Override
-    public String getAuthor(){
+    public @NonNull String getAuthor(){
         return plugin.getPluginMeta().getAuthors().toString();
     }
 
     @Override
-    public String getIdentifier(){
+    public @NonNull String getIdentifier(){
         return "vineriumcore";
     }
 
     @Override
-    public String getVersion(){
+    public @NonNull String getVersion(){
         return plugin.getPluginMeta().getVersion();
     }
 
     @Override
-    public String onPlaceholderRequest(Player player, String identifier){
+    public String onPlaceholderRequest(Player player, @NonNull String identifier) {
 
-        if(player == null){
+        if(player == null) {
             return "";
         }
 
-        return Placeholder.valueOf(identifier.toUpperCase()).placeholderResult(plugin,player);
+        return placeholders.get(identifier.toLowerCase()).apply(plugin,player);
     }
 
-    public enum Placeholder {
-
-        PVP_MODE {
-            @Override
-            public String placeholderResult(VineriumCore plugin, Player player) {
-                PlayerManager playerManager = VineriumCore.inst().getPlayerManager();
-                if (playerManager.getPvpModePlayers().contains(player))
-                    return playerManager.getPvpPlaceholder();
-                else return "";
+    public void registerPlaceholders() {
+        placeholders.put("pvp_mode",(plugin,player) -> {
+            PlayerManager playerManager = VineriumCore.inst().getPlayerManager();
+            if (playerManager.getPvpModePlayers().contains(player))
+                return playerManager.getPvpPlaceholder();
+            else return "";
+        });
+        placeholders.put("vip_until",(plugin,player) -> {
+            if (VineriumLib.inst().getVaultManager() != null && VineriumLib.inst().getVaultManager().getPermissionProvider() != null
+                    && VineriumCore.inst().getLuckPermsManager() != null) {
+                return VineriumCore.inst().getLuckPermsManager().getVipUntil(player);
             }
-        },
-        VIP_UNTIL {
-            @Override
-            public String placeholderResult(VineriumCore plugin, Player player) {
-                if (VineriumLib.inst().getVaultManager() != null && VineriumLib.inst().getVaultManager().getPermissionProvider() != null && VineriumCore.inst().getLuckPermsManager() != null) {
-                    return VineriumCore.inst().getLuckPermsManager().getVipUntil(player);
-                }
-                else return "";
+            else return "";
+        });
+        placeholders.put("suffix",(plugin,player) -> {
+            if (VineriumCore.inst().getLuckPermsManager() != null)
+                return VineriumCore.inst().getLuckPermsManager().getSuffix(player);
+            else return "";
+        });
+        placeholders.put("suffix_parsed",(plugin,player) ->
+                PlaceholderAPI.setPlaceholders(player,PlaceholderAPI.setPlaceholders(player,"%luckperms_suffix%")));
+        placeholders.put("suffix_symbol_from_luckperms",(plugin,player) -> {
+            String suffixName = VineriumCore.inst().getSuffixManager().getSuffixPlaceholdersToNames().getOrDefault(
+                    PlaceholderAPI.setPlaceholders(player,"%luckperms_suffix%"),"");
+            VinSuffix suffix = VineriumCore.inst().getSuffixManager().getSuffixes().get(suffixName);
+            if (suffix != null) {
+                return suffix.getSymbol();
             }
-        },
-        SUFFIX {
-            @Override
-            public String placeholderResult(VineriumCore plugin, Player player) {
-                if (VineriumCore.inst().getLuckPermsManager() != null)
-                    return VineriumCore.inst().getLuckPermsManager().getSuffix(player);
-                else return "";
+            else return "";
+        });
+        placeholders.put("confirmation_status",(plugin,player) -> {
+            if (player.permissionValue("vineriumcore.status.confirmation") == TriState.TRUE) {
+                return PlaceholderAPI.setPlaceholders(player,
+                        PlaceholderAPI.setPlaceholders(player,VineriumCore.inst().getConfig().getString("ConfirmationStatus.Format","")));
             }
-        },
-        SUFFIX_PARSED {
-            @Override
-            public String placeholderResult(VineriumCore plugin, Player player) {
-                return PlaceholderAPI.setPlaceholders(player,PlaceholderAPI.setPlaceholders(player,"%luckperms_suffix%"));
-            }
-        };
-
-        public abstract String placeholderResult(VineriumCore plugin, Player player);
+            else
+                return "";
+        });
     }
 }

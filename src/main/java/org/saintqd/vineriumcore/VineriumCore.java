@@ -1,5 +1,7 @@
 package org.saintqd.vineriumcore;
 
+import lombok.AccessLevel;
+import lombok.Getter;
 import net.kyori.adventure.key.Key;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
@@ -18,8 +20,10 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 
+@Getter
 public class VineriumCore extends JavaPlugin {
 
+    @Getter(AccessLevel.NONE)
     private static VineriumCore plugin;
     private ConfigManager configManager;
     private VinCorePlaceholders placeholders;
@@ -34,6 +38,9 @@ public class VineriumCore extends JavaPlugin {
     private boolean CMIEnabled = false;
     private boolean liteBansEnabled = false;
     private LuckPermsManager luckPermsManager = null;
+    private boolean nexoEnabled = false;
+    private boolean mythicMobsEnabled = false;
+    private boolean hmcCosmeticsEnabled = false;
 
     public static VineriumCore inst() {
         return plugin;
@@ -66,6 +73,7 @@ public class VineriumCore extends JavaPlugin {
         // Подключаем плейсхолдеры
         if (Bukkit.getPluginManager().getPlugin("PlaceholderAPI") != null) {
             placeholders = new VinCorePlaceholders(this);
+            placeholders.registerPlaceholders();
             placeholders.register();
         } else {
             placeholders = null;
@@ -90,6 +98,28 @@ public class VineriumCore extends JavaPlugin {
         if (luckPerms != null && luckPerms.isEnabled()) {
             this.luckPermsManager = new LuckPermsManager();
             VinUtils.sendDebugMessage(0,"LuckPerms found, compatibility features enabled.");
+        }
+
+        Plugin nexo = Bukkit.getPluginManager().getPlugin("Nexo");
+        if (nexo != null && nexo.isEnabled()) {
+            this.nexoEnabled = true;
+            VinUtils.sendDebugMessage(0,"Nexo found, compatibility features enabled.");
+        }
+
+        Plugin hmcCosmetics = Bukkit.getPluginManager().getPlugin("HMCCosmetics");
+        if (hmcCosmetics != null && hmcCosmetics.isEnabled()) {
+            this.hmcCosmeticsEnabled = true;
+            VinUtils.sendDebugMessage(0,"HMCCosmetics found, compatibility features enabled.");
+        }
+
+        Plugin mythicMobs = Bukkit.getPluginManager().getPlugin("MythicMobs");
+        if (mythicMobs != null && mythicMobs.isEnabled()) {
+            this.mythicMobsEnabled = true;
+            VinUtils.sendDebugMessage(0,"MythicMobs found, compatibility features enabled.");
+            MythicMobsListener listener = new MythicMobsListener();
+            listener.registerConditions();
+            listener.registerMechanics();
+            getServer().getPluginManager().registerEvents(listener, this);
         }
 
         loadData();
@@ -145,6 +175,33 @@ public class VineriumCore extends JavaPlugin {
 
         hintManager.setupStarterHintTask(this);
 
+        ItemSkinManager.INSTANCE.loadItemSkins(this);
+        time = System.currentTimeMillis();
+        getLogger().info("Loaded " + ItemSkinManager.INSTANCE.getItemSkins().size() + " item skins. ("+(time-prevTime)+" ms)");
+        prevTime = System.currentTimeMillis();
+
+        DecorationManager.Companion.getInstance().loadParams(this);
+        time = System.currentTimeMillis();
+        getLogger().info("Loaded " + DecorationManager.Companion.getInstance().getDecorationElements().size() + " decoration elements. ("+(time-prevTime)+" ms)");
+        prevTime = System.currentTimeMillis();
+
+        TradeManager.Companion.getInstance().loadParams(this);
+        time = System.currentTimeMillis();
+        getLogger().info("Loaded " + TradeManager.Companion.getInstance().getTradeSets().size() + " custom trades. ("+(time-prevTime)+" ms)");
+        prevTime = System.currentTimeMillis();
+
+        MailbookManager.INSTANCE.loadParams(this);
+        time = System.currentTimeMillis();
+        if (!MailbookManager.INSTANCE.getUnreadMailbooks().isEmpty())
+            getLogger().info("Loaded " + MailbookManager.INSTANCE.getUnreadMailbooks().size() + " players with mailbooks. ("+(time-prevTime)+" ms)");
+        prevTime = System.currentTimeMillis();
+
+        CalendarEventsManager.Companion.getInstance().loadTimedEvents(this);
+        time = System.currentTimeMillis();
+        if (!CalendarEventsManager.Companion.getInstance().getEvents().isEmpty())
+            getLogger().info("Loaded " + CalendarEventsManager.Companion.getInstance().getEvents().size() + " calendar events. ("+(time-prevTime)+" ms)");
+        prevTime = System.currentTimeMillis();
+
         VineriumLib.inst().getCustomGUIManager().unregisterGuis(this);
         VineriumLib.inst().getCustomGUIManager().registerGuis(this);
 
@@ -157,45 +214,11 @@ public class VineriumCore extends JavaPlugin {
         VinUtils.sendDebugMessage(0,"Saving community suffixes data...");
         suffixManager.saveCommunitySuffixes();
         VinUtils.sendDebugMessage(0,"Saved "+suffixManager.getCommunitySuffixes().size()+" community suffixes.");
-    }
 
-    public ConfigManager getConfigManager() {
-        return configManager;
-    }
-
-    public HintManager getHintManager() {
-        return hintManager;
-    }
-
-    public SuffixManager getSuffixManager() {
-        return suffixManager;
-    }
-
-    public PlayerManager getPlayerManager() {
-        return playerManager;
-    }
-
-    public VinCorePlaceholders getPlaceholders() {
-        return placeholders;
-    }
-
-    public boolean isCMIEnabled() {
-        return CMIEnabled;
-    }
-
-    public boolean isLiteBansEnabled() {
-        return liteBansEnabled;
-    }
-
-    public LuckPermsManager getLuckPermsManager() {
-        return luckPermsManager;
-    }
-
-    public DynamicParamsManager getDynamicParamsManager() {
-        return dynamicParamsManager;
-    }
-
-    public OreManager getOreManager() {
-        return oreManager;
+        if (!MailbookManager.INSTANCE.getUnreadMailbooks().isEmpty()) {
+            VinUtils.sendDebugMessage(0, "Saving mailbooks data...");
+            MailbookManager.INSTANCE.saveMailbooks(this);
+            VinUtils.sendDebugMessage(0, "Saved " + MailbookManager.INSTANCE.getUnreadMailbooks().size() + " players with mailbooks.");
+        }
     }
 }

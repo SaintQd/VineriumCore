@@ -10,6 +10,9 @@ softdepend:
   - WorldGuard
   - LiteBans
   - LuckPerms
+  - Nexo
+  - MythicMobs
+  - HMCCosmetics
 permissions:
   vineriumcore.admin:
     description: Access to admin commands.

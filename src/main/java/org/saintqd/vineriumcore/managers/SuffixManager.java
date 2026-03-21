@@ -129,8 +129,10 @@ public class SuffixManager {
         vaultManager.getChatProvider().setPlayerSuffix(null,player, null);
         List<String> possibleSuffix = player.getEffectivePermissions().stream().map(PermissionAttachmentInfo::getPermission)
                 .filter(permission -> permission.startsWith("meta.suffix-symbol.")).toList();
-        if (!possibleSuffix.isEmpty())
-            vaultManager.getPermissionProvider().playerRemove(null,player,possibleSuffix.getFirst());
+        if (!possibleSuffix.isEmpty()) {
+            for(String suffix : possibleSuffix)
+                vaultManager.getPermissionProvider().playerRemove(null,player,suffix);
+        }
         audience.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"suffix_removed_message"));
     }
 

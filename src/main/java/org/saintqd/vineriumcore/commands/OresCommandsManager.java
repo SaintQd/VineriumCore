@@ -6,6 +6,7 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 import io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver;
+import lombok.Getter;
 import net.kyori.adventure.util.TriState;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -16,6 +17,7 @@ import org.saintqd.vineriumlib.utils.VinUtils;
 
 public class OresCommandsManager {
 
+    @Getter
     private static final LiteralArgumentBuilder<CommandSourceStack> oresCommands = Commands.literal("ores")
             .then(Commands.literal("alerts")
                     .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.orealerts.toggle"))
@@ -127,10 +129,6 @@ public class OresCommandsManager {
                             )
                     )
             );
-
-    public static LiteralArgumentBuilder<CommandSourceStack> getOresCommands() {
-        return oresCommands;
-    }
 
     private static void toggleAlertsCommand(CommandSender sender, String type, String state, Player player) {
 

@@ -1,6 +1,5 @@
 package org.saintqd.vineriumcore.commands;
 
-import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -19,6 +18,8 @@ import org.saintqd.vineriumcore.suffix.CommunitySuffix;
 import org.saintqd.vineriumcore.suffix.VinSuffix;
 import org.saintqd.vineriumlib.VineriumLib;
 import org.saintqd.vineriumlib.utils.VinUtils;
+
+import java.util.List;
 
 public class SuffixCommandsManager {
 
@@ -97,7 +98,7 @@ public class SuffixCommandsManager {
                                     .suggests((ctx,builder) -> {
                                         String partName = builder.getRemaining();
                                          Bukkit.getOnlinePlayers().forEach((player) -> {
-                                             if (player.getName().startsWith(partName.toLowerCase()))
+                                             if (player.getName().toLowerCase().startsWith(partName.toLowerCase()))
                                                  builder.suggest(player.getName());
                                         });
                                         return builder.buildFuture();
@@ -123,10 +124,15 @@ public class SuffixCommandsManager {
                             })
                             .then(Commands.argument("player", StringArgumentType.word())
                                     .suggests((ctx,builder) -> {
+                                        CommunitySuffix suffix = VineriumCore.inst().getSuffixManager()
+                                                .getCommunitySuffixes().get(ctx.getLastChild().getArgument("suffix", String.class));
+                                        if (suffix == null)
+                                            return builder.buildFuture();
+                                        List<String> suffixPlayers = suffix.getUsers();
                                         String partName = builder.getRemaining();
-                                         Bukkit.getOnlinePlayers().forEach((player) -> {
-                                             if (player.getName().startsWith(partName.toLowerCase()))
-                                                 builder.suggest(player.getName());
+                                        suffixPlayers.forEach((player) -> {
+                                             if (player.toLowerCase().startsWith(partName.toLowerCase()))
+                                                 builder.suggest(player);
                                         });
                                         return builder.buildFuture();
                                     })
@@ -268,10 +274,11 @@ public class SuffixCommandsManager {
             sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_player_not_found",playerName));
             return;
         }
+        communitySuffix.getUsers().remove(playerName);
         communitySuffix.getUsers().add(playerName);
         if (VineriumLib.inst().getVaultManager() != null && VineriumLib.inst().getVaultManager().getPermissionProvider() != null)
             VineriumLib.inst().getVaultManager().getPermissionProvider().playerAdd(null,offlinePlayer,suffix.getPermission());
-        if (offlinePlayer.isOnline()) {
+        if (offlinePlayer.isOnline() && offlinePlayer.getPlayer() != null) {
             offlinePlayer.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_add_message",suffix.getParsedPlaceholder()));
         }
         sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_added_successfully",playerName,suffix.getParsedPlaceholder()));
@@ -298,7 +305,7 @@ public class SuffixCommandsManager {
         communitySuffix.getUsers().remove(playerName);
         if (VineriumLib.inst().getVaultManager() != null && VineriumLib.inst().getVaultManager().getPermissionProvider() != null)
             VineriumLib.inst().getVaultManager().getPermissionProvider().playerRemove(null,offlinePlayer,suffix.getPermission());
-        if (offlinePlayer.isOnline()) {
+        if (offlinePlayer.isOnline() && offlinePlayer.getPlayer() != null) {
             VineriumCore.inst().getSuffixManager().checkSuffixPermission(offlinePlayer.getPlayer());
             offlinePlayer.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_remove_message",suffix.getParsedPlaceholder()));
         }

@@ -57,7 +57,7 @@ public class CMIListener implements Listener {
             leaveMessageFormat = leaveMessageFormat.replace("[message]", leaveMessage).replace("[dot]",".");
             leaveMessageFormat = leaveMessageFormat.replace("*", VineriumCore.inst().getConfig().getString("Messages.NicknameFormat", event.getPlayer().getName()));
             leaveMessageFormat = (VineriumCore.inst().getPlaceholders() != null)
-                    ? PlaceholderAPI.setPlaceholders(event.getPlayer(), leaveMessageFormat)
+                    ? PlaceholderAPI.setPlaceholders(event.getPlayer(), PlaceholderAPI.setPlaceholders(event.getPlayer(),leaveMessageFormat))
                     : leaveMessageFormat;
 
             Audience.audience(Bukkit.getOnlinePlayers()).sendMessage(VinUtils.parseString(leaveMessageFormat));
@@ -101,7 +101,7 @@ public class CMIListener implements Listener {
             joinMessageFormat = joinMessageFormat.replace("[message]", joinMessage).replace("[dot]",".");
             joinMessageFormat = joinMessageFormat.replace("*", VineriumCore.inst().getConfig().getString("Messages.NicknameFormat", event.getPlayer().getName()));
             joinMessageFormat = (VineriumCore.inst().getPlaceholders() != null)
-                    ? PlaceholderAPI.setPlaceholders(event.getPlayer(), joinMessageFormat)
+                    ? PlaceholderAPI.setPlaceholders(event.getPlayer(), PlaceholderAPI.setPlaceholders(event.getPlayer(),joinMessageFormat))
                     : joinMessageFormat;
             Audience.audience(Bukkit.getOnlinePlayers()).sendMessage(VinUtils.parseString(joinMessageFormat));
         }

@@ -1,5 +1,9 @@
 package org.saintqd.vineriumcore.listeners;
 
+import com.sk89q.worldguard.LocalPlayer;
+import com.sk89q.worldguard.WorldGuard;
+import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
+import com.sk89q.worldguard.protection.regions.RegionContainer;
 import net.kyori.adventure.key.Key;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.bukkit.*;
@@ -22,6 +26,7 @@ import org.bukkit.potion.PotionEffectType;
 import org.intellij.lang.annotations.Subst;
 import org.saintqd.vineriumcore.VineriumCore;
 import org.saintqd.vineriumcore.managers.PlayerManager;
+import org.saintqd.vineriumcore.worldguard.Flags;
 import org.saintqd.vineriumlib.VineriumLib;
 import org.saintqd.vineriumlib.utils.VinUtils;
 
@@ -59,8 +64,15 @@ public class VillagerListener implements Listener {
     public void onVillagerInteract(PlayerInteractEntityEvent event) {
         if (!(event.getRightClicked() instanceof Villager villager)) return;
         if (event.getHand() != EquipmentSlot.HAND) return;
-        if (!VineriumCore.inst().getConfig().getBoolean("Tweaks.VillagerOptimizer.Enabled",true)) return;
 
+        RegionContainer container = WorldGuard.getInstance().getPlatform().getRegionContainer();
+        LocalPlayer localPlayer = WorldGuardPlugin.inst().wrapPlayer(event.getPlayer());
+        if (!container.createQuery().testState(localPlayer.getLocation(),localPlayer, Flags.VILLAGER_TRADE)) {
+            event.setCancelled(true);
+            return;
+        }
+
+            if (!VineriumCore.inst().getConfig().getBoolean("Tweaks.VillagerOptimizer.Enabled",true)) return;
         if (VineriumCore.inst().getConfig().getBoolean("Tweaks.VillagerManualBreed.Enabled",true)) {
             ItemStack handItem = event.getPlayer().getInventory().getItemInMainHand();
             if (VineriumCore.inst().getConfig().contains("Tweaks.VillagerManualBreed.Items."+handItem.getType())) {
