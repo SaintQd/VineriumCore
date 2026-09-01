@@ -8,8 +8,13 @@ import io.lumine.mythic.bukkit.events.MythicMechanicLoadEvent
 import io.lumine.mythic.core.skills.SkillExecutor
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
-import org.saintqd.vineriumcore.mythicmobs.conditions.VinHasPdcValueMechanic
+import org.saintqd.vineriumcore.mythicmobs.conditions.VinBlockHumidityCondition
+import org.saintqd.vineriumcore.mythicmobs.conditions.VinBlockTemperatureCondition
+import org.saintqd.vineriumcore.mythicmobs.conditions.VinHasPdcValueCondition
 import org.saintqd.vineriumcore.mythicmobs.conditions.VinItemDurabilityCondition
+import org.saintqd.vineriumcore.mythicmobs.conditions.VinStatisticCondition
+import org.saintqd.vineriumcore.mythicmobs.conditions.VinStringContainsCondition
+import org.saintqd.vineriumcore.mythicmobs.conditions.VinStringStartsWithCondition
 import org.saintqd.vineriumcore.mythicmobs.mechanics.VinAddAttributeMechanic
 import org.saintqd.vineriumcore.mythicmobs.mechanics.VinGetPdcValueMechanic
 import org.saintqd.vineriumcore.mythicmobs.mechanics.VinRemoveAttributeMechanic
@@ -23,16 +28,21 @@ class MythicMobsListener : Listener {
     private val conditions = hashMapOf<String,(String, MythicLineConfig) -> ISkillCondition>()
 
     fun registerMechanics() {
-        mechanics["vingetpdcvalue"] = { manager : SkillExecutor, file : File, line : String, config : MythicLineConfig -> VinGetPdcValueMechanic(manager,file,line,config) }
-        mechanics["vinsetpdcvalue"] = { manager : SkillExecutor, file : File, line : String, config : MythicLineConfig -> VinSetPdcValueMechanic(manager,file,line,config) }
-        mechanics["vinremovepdcvalue"] = { manager : SkillExecutor, file : File, line : String, config : MythicLineConfig -> VinRemovePdcValueMechanic(manager,file,line,config) }
-        mechanics["vinaddattribute"] = { manager : SkillExecutor, file : File, line : String, config : MythicLineConfig -> VinAddAttributeMechanic(manager,file,line,config) }
-        mechanics["vinremoveattribute"] = { manager : SkillExecutor, file : File, line : String, config : MythicLineConfig -> VinRemoveAttributeMechanic(manager,file,line,config) }
+        //mechanics["vingetpdcvalue"] = { manager : SkillExecutor, file : File, line : String, config : MythicLineConfig -> VinGetPdcValueMechanic(manager,file,line,config) }
+        //mechanics["vinsetpdcvalue"] = { manager : SkillExecutor, file : File, line : String, config : MythicLineConfig -> VinSetPdcValueMechanic(manager,file,line,config) }
+        //mechanics["vinremovepdcvalue"] = { manager : SkillExecutor, file : File, line : String, config : MythicLineConfig -> VinRemovePdcValueMechanic(manager,file,line,config) }
+        //mechanics["vinaddattribute"] = { manager : SkillExecutor, file : File, line : String, config : MythicLineConfig -> VinAddAttributeMechanic(manager,file,line,config) }
+        //mechanics["vinremoveattribute"] = { manager : SkillExecutor, file : File, line : String, config : MythicLineConfig -> VinRemoveAttributeMechanic(manager,file,line,config) }
     }
 
     fun registerConditions() {
-        conditions["vinitemdurability"] = { line: String, mlc : MythicLineConfig -> VinItemDurabilityCondition(line,mlc) }
-        conditions["vinhaspdcvalue"] = { line: String, mlc : MythicLineConfig -> VinHasPdcValueMechanic(line,mlc) }
+        //conditions["vinitemdurability"] = { line: String, mlc : MythicLineConfig -> VinItemDurabilityCondition(line,mlc) }
+        //conditions["vinhaspdcvalue"] = { line: String, mlc : MythicLineConfig -> VinHasPdcValueCondition(line,mlc) }
+        //conditions["vinstringstartswith"] = { line: String, mlc : MythicLineConfig -> VinStringStartsWithCondition(line,mlc) }
+        //conditions["vinstringcontains"] = { line: String, mlc : MythicLineConfig -> VinStringContainsCondition(line,mlc) }
+        //conditions["vintemperature"] = { line: String, mlc : MythicLineConfig -> VinBlockTemperatureCondition(line,mlc) }
+        //conditions["vinhumidity"] = { line: String, mlc : MythicLineConfig -> VinBlockHumidityCondition(line,mlc) }
+        //conditions["vinstatistic"] = { line: String, mlc : MythicLineConfig -> VinStatisticCondition(line,mlc) }
     }
 
     @EventHandler

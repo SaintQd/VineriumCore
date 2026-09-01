@@ -4,24 +4,38 @@ $onceKeys:
   - 'DynamicDistance.Simulation'
   - 'OreAlerts.Materials'
   - 'Tweaks.VillagerManualBreed.Items'
+  - 'Tweaks.VillagerOptimizer.InjectTradesOnOptimize'
   - 'Tweaks.PortalRedirect.Worlds'
   - 'Tweaks.CauldronTransform.TransformList'
   - 'CustomPortals.List'
+  - 'CommandsAfterLastSeen.Presets'
+  - 'Messages.Join.FormatPerGroup'
+  - 'Messages.DefaultJoin.FormatPerGroup'
+  - 'Messages.Leave.FormatPerGroup'
+  - 'Messages.DefaultLeave.FormatPerGroup'
 Language: ru_ru
 Messages:
   Enabled: true
   Join:
     Enabled: true
     Format: ' <gradient:#EF97D1:#AA68F6>[+] • [message]'
+    FormatPerGroup:
+      sponsor: ' <gradient:#FFC34D:#F8FFC3>[+] • [message]'
   DefaultJoin:
     Enabled: true
     Format: ' <gradient:#EF97D1:#AA68F6>[+] • * зашёл поиграть'
+    FormatPerGroup:
+      sponsor: ' <gradient:#FFC34D:#F8FFC3>[+] • * зашёл поиграть'
   Leave:
     Enabled: true
     Format: ' <gradient:#AFF5FF:#E7A6FF>[-] • [message]'
+    FormatPerGroup:
+      sponsor: ' <gradient:#F8FFC3:#FFC34D>[-] • [message]'
   DefaultLeave:
     Enabled: true
     Format: ' <gradient:#AFF5FF:#E7A6FF>[-] • * вышел из игры'
+    FormatPerGroup:
+      sponsor: ' <gradient:#F8FFC3:#FFC34D>[-] • * вышел из игры'
   FirstJoin:
     Enabled: true
     Format: ' <#82ECB4>[❤] • * впервые на сервере'
@@ -30,6 +44,9 @@ Messages:
   Me:
     Distance: 25
     Format: '<#EF97D1>* <#E7A6FF>%name% <#EF97D1>%message%'
+  Do:
+    Distance: 25
+    Format: '<dark_gray>[* %name% ] <#EF97D1>%message%'
   Try:
     Distance: 25
     Format: '<#EF97D1>* <#E7A6FF>%name% <#EF97D1>%message% [<reset>%result%<#EF97D1>]'
@@ -187,6 +204,11 @@ Tweaks:
       - 'FILLED_MAP'
     BlockedCommands:
       - 'draw'
+  ItemSign:
+    Enabled: true
+    BlockedCommands:
+      - 'cmi itemlore'
+      - 'itemlore'
   EntityPortalBlock:
     Enabled: false
     EnabledNether: false
@@ -217,6 +239,33 @@ Tweaks:
       MAGENTA_CONCRETE_POWDER: MAGENTA_CONCRETE
       PINK_CONCRETE_POWDER: PINK_CONCRETE
       DIRT: MUD
+  HeadDrops:
+    Enabled: true
+  VaultReset:
+    Enabled: true
+    Cooldown: 600
+  DeathKnockout:
+    Enabled: true
+    KnockoutPeriod: 1200
+  HealthSave:
+    Enabled: true
+  UnstripLogs:
+    Enable: true
+    HandMaterial: 'BONE_MEAL'
+    Amount: 1
+    SpawnParticles: true
+    Sound: "item.axe.strip,2"
+  RemovePodzol:
+    Enabled: true
+    HandMaterial: 'BRUSH'
+    SpawnParticles: true
+    Radius: 1
+  ColoredHelmetTeams:
+    Enabled: true
+  PhantomsToggle:
+    Enabled: true
+    Period: 6000
+    RemovePhantomOnDamage: true
 Compatibility:
   LiteBans:
     Enabled: true
@@ -244,8 +293,11 @@ AccountTransfer:
   EnderChest: true
   Money: true
   CMI: true
+  CommandsBeforeTransfer:
+    - 'vindiscord relinkaccount %old_player_name% %new_player_name%'
   Commands:
     - 'cmi tp %new_player_name% %old_player_name%'
+  KeepPendingTransfersTime: 604800
 OreAlerts:
   Enabled: true
   Materials:
@@ -269,6 +321,23 @@ Mailbooks:
   TextPrefix: ''
   ExpireTime: 12096000
   MailbookKey: ''
+ArmorStandInteractions:
+  Enabled: true
+  OpenMenuItem: IRON_INGOT
+  ChangeNameItem: NAME_TAG
+  ShowNearItem: FLINT
+  ShowNearRadius: 10
+  ShowNearGlowTime: 200
+ShulkerDupeDetector:
+  Enabled: true
+  CheckPeriod: 6000
+  KeepUuidTime: 12000
+  HoverCommand: 'cmi tp {1}'
+  Sound: "entity.player.levelup,2"
+  CommandsOnDetect:
+    - 'vin broadcast admin shulker_dupe_detected %player_name% %location%'
+CauldronRecipes:
+  Enabled: true
 DisableDrops:
   Enabled: false
   Materials:
@@ -300,3 +369,35 @@ CustomPortals:
       Commands: []
 ConfirmationStatus:
   Format: '✦ '
+  Permission: 'group.rp'
+CommandsAfterLastSeen:
+  Enabled: true
+  CheckDelay: 60
+  Presets:
+    7days:
+      Time: 604800000
+      Commands:
+        - 'lp user %player_name% parent addtemp vip 1d accumulate'
+        - 'cmi bbroadcast {#EC95CF}%player_name% вернулся на просторы Винериума после долгого отсутствия'
+        - 'tellraw %player_name% [{"text":"Вы получили Ягодку на 1 день. С возвращением!","color":"#ec95cf"}]'
+PingAlert:
+  Enabled: true
+  Period: 1200
+  AlertThreshold: 500
+WorldGuardFlags:
+  Glide:
+    AllowedComponentName: 'glide_allow'
+    CheckTask: 40
+  VinMessage:
+    Delimiter: '<reset> | '
+ServerConnector:
+  Enabled: true
+  ServerName: 'Vinerium'
+  Command: 'cmi server {1} %player_name%'
+Guide:
+  Enabled: true
+  ShowMessage: true
+  MaxTimePlayedToShowMessage: 72000
+  ReceivePermission: 'vineriumcore.guide.receive'
+  CompletedPermission: 'vineriumcore.guide.completed'
+  ApplySound: 'entity.player.levelup,2'

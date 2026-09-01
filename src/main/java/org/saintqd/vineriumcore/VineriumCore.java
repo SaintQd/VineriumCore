@@ -1,5 +1,6 @@
 package org.saintqd.vineriumcore;
 
+import io.lumine.mythic.core.skills.CustomComponentRegistry;
 import lombok.AccessLevel;
 import lombok.Getter;
 import net.kyori.adventure.key.Key;
@@ -41,6 +42,7 @@ public class VineriumCore extends JavaPlugin {
     private boolean nexoEnabled = false;
     private boolean mythicMobsEnabled = false;
     private boolean hmcCosmeticsEnabled = false;
+    private boolean worldGuardEnabled = false;
 
     public static VineriumCore inst() {
         return plugin;
@@ -49,12 +51,20 @@ public class VineriumCore extends JavaPlugin {
     @Override
     public void onLoad() {
         plugin = this;
-        Flags.registerFlags();
+
+        Plugin worldGuard = Bukkit.getPluginManager().getPlugin("WorldGuard");
+        if (worldGuard != null) {
+            worldGuardEnabled = true;
+            VinUtils.sendDebugMessage(0,"WorldGuard found, compatibility features enabled.");
+            Flags.registerFlags();
+        }
     }
 
     @Override
     public void onEnable() {
-        Flags.registerHandlers();
+        if (worldGuardEnabled) {
+            Flags.registerHandlers();
+        }
         try {
             ResourceUtils.fetchAllResources(this,getFile());
         } catch (IOException e) {
@@ -116,17 +126,21 @@ public class VineriumCore extends JavaPlugin {
         if (mythicMobs != null && mythicMobs.isEnabled()) {
             this.mythicMobsEnabled = true;
             VinUtils.sendDebugMessage(0,"MythicMobs found, compatibility features enabled.");
-            MythicMobsListener listener = new MythicMobsListener();
-            listener.registerConditions();
-            listener.registerMechanics();
-            getServer().getPluginManager().registerEvents(listener, this);
+            //MythicMobsListener listener = new MythicMobsListener();
+            //listener.registerConditions();
+            //listener.registerMechanics();
+            //getServer().getPluginManager().registerEvents(listener, this);
+
+            new CustomComponentRegistry(this,"org.saintqd.vineriumcore.mythicmobs");
         }
 
         loadData();
 
         VinCommandsManager.setupCommands(this);
 
+        getServer().getPluginManager().registerEvents(new MobListener(), this);
         getServer().getPluginManager().registerEvents(new PlayerListener(), this);
+        getServer().getPluginManager().registerEvents(new ChatListener(), this);
         getServer().getPluginManager().registerEvents(new VillagerListener(), this);
         getServer().getPluginManager().registerEvents(new EntityListener(), this);
 
@@ -202,15 +216,25 @@ public class VineriumCore extends JavaPlugin {
             getLogger().info("Loaded " + CalendarEventsManager.Companion.getInstance().getEvents().size() + " calendar events. ("+(time-prevTime)+" ms)");
         prevTime = System.currentTimeMillis();
 
+        CauldronRecipesManager.INSTANCE.loadRecipes(this);
+        time = System.currentTimeMillis();
+        if (!CauldronRecipesManager.INSTANCE.getRecipes().isEmpty())
+            getLogger().info("Loaded " + CauldronRecipesManager.INSTANCE.getRecipes().size() + " cauldron recipes. ("+(time-prevTime)+" ms)");
+        prevTime = System.currentTimeMillis();
+
         VineriumLib.inst().getCustomGUIManager().unregisterGuis(this);
         VineriumLib.inst().getCustomGUIManager().registerGuis(this);
 
         oreManager.updateData(this);
         oreManager.loadData(this);
+        ShulkerAlertManager.INSTANCE.loadData(this);
     }
 
     public void saveData() {
         oreManager.updateData(this);
+        VinUtils.sendDebugMessage(0,"Saving pending account transfers...");
+        configManager.savePendingTransfers();
+        VinUtils.sendDebugMessage(0,"Saved "+configManager.getPendingAccountTransfers().size()+" pending transfer data.");
         VinUtils.sendDebugMessage(0,"Saving community suffixes data...");
         suffixManager.saveCommunitySuffixes();
         VinUtils.sendDebugMessage(0,"Saved "+suffixManager.getCommunitySuffixes().size()+" community suffixes.");

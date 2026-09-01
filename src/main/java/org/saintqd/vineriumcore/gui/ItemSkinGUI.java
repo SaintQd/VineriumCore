@@ -72,10 +72,6 @@ public class ItemSkinGUI extends VinGUI {
             if (!availableSkins.get(skinName))
                 continue;
 
-            loopIndex++;
-            if (loopIndex <= (page - 1) * (size - 9)) continue; // Проверки для отображения скинов только текущей страницы
-            if (loopIndex > page * (size - 9)) break;
-
             ItemSkinManager.ItemSkin itemSkin = ItemSkinManager.INSTANCE.getItemSkins().get(skinName);
             boolean possibleTypeFound = false;
             for (String materialName : itemSkin.materials())
@@ -84,6 +80,11 @@ public class ItemSkinGUI extends VinGUI {
                     break;
                 }
             if (possibleTypeFound) {
+
+                loopIndex++;
+                if (loopIndex <= (page - 1) * (size - 9)) continue; // Проверки для отображения скинов только текущей страницы
+                if (loopIndex > page * (size - 9)) break;
+
                 ItemStack skinItem = ItemStack.of(Material.STONE);
                 ItemLore.Builder lore = ItemLore.lore();
 

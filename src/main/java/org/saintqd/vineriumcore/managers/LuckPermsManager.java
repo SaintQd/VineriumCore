@@ -9,6 +9,8 @@ import org.saintqd.vineriumcore.VineriumCore;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Getter
 public class LuckPermsManager {
@@ -36,6 +38,28 @@ public class LuckPermsManager {
             }
         }
         return "-";
+    }
+
+    public CompletableFuture<String> getOfflineVipUntil(UUID uuid) {
+        String vipGroupName = VineriumCore.inst().getConfig().getString("Compatibility.LuckPerms.VipGroupName","");
+        if (vipGroupName.isEmpty())
+            return CompletableFuture.completedFuture("-");
+        CompletableFuture<String> string = luckPerms.getUserManager().loadUser(uuid)
+                .thenApplyAsync(user -> {
+                    for (net.luckperms.api.node.Node node : user.getDistinctNodes()) {
+                        if (node.getKey().equals("group."+vipGroupName)) {
+                            if (node.getExpiry() == null)
+                                return "∞";
+                            else {
+                                ZonedDateTime zonedDateTime = node.getExpiry().atZone(ZoneId.of("Europe/Moscow"));
+                                return zonedDateTime.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+                            }
+
+                        }
+                    }
+                    return "-";
+                });
+        return string;
     }
 
     public void copyPermissions(OfflinePlayer oldPlayer, OfflinePlayer newPlayer) {

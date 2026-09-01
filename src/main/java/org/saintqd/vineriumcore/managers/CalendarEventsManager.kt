@@ -3,6 +3,7 @@ package org.saintqd.vineriumcore.managers
 import org.bukkit.NamespacedKey
 import org.bukkit.configuration.ConfigurationSection
 import org.bukkit.configuration.file.YamlConfiguration
+import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.Plugin
 import org.saintqd.vineriumlib.VineriumLib
 import java.nio.file.Paths

@@ -3,26 +3,35 @@ package org.saintqd.vineriumcore.managers;
 import kotlin.Pair;
 import lombok.Getter;
 import net.kyori.adventure.key.Key;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
+import org.bukkit.*;
+import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.MerchantRecipe;
 import org.intellij.lang.annotations.Subst;
 import org.saintqd.vineriumcore.VineriumCore;
+import org.saintqd.vineriumlib.VineriumLib;
+import org.saintqd.vineriumlib.managers.VaultManager;
 import org.saintqd.vineriumlib.utils.VinUtils;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.time.Instant;
 import java.util.*;
 
 public class ConfigManager {
 
     private static final NamespacedKey LOCK_KEY = new NamespacedKey(VineriumCore.inst(),"item_lock");
+    private static final NamespacedKey SIGN_KEY = new NamespacedKey(VineriumCore.inst(),"item_sign");
 
     public static NamespacedKey getLockKey() {
         return LOCK_KEY;
+    }
+    public static NamespacedKey getSignKey() {
+        return SIGN_KEY;
     }
 
     @Getter
@@ -36,6 +45,14 @@ public class ConfigManager {
     @Getter
     private final HashMap<String,String> cauldronTransforms = new HashMap<>();
     private final HashMap<String,String> cosmeticPermissionsToNames = new HashMap<>();
+    @Getter
+    private final HashMap<String,Pair<String,Long>> pendingAccountTransfers = new HashMap<>();
+    @Getter
+    private final HashMap<String,String> accountTransferNewToOldNicknames = new HashMap<>();
+    @Getter
+    private final HashMap<String,String> transferConfirmations = new HashMap<>();
+    @Getter
+    public HashMap<UUID,UUID> guidePickedPlayers = new HashMap<>();
 
     public HashMap<String,String> getCosmeticPermissionsToNames() {
         return cosmeticPermissionsToNames;
@@ -77,6 +94,9 @@ public class ConfigManager {
         disabledDrops.clear();
         cauldronTransforms.clear();
         cosmeticPermissionsToNames.clear();
+        pendingAccountTransfers.clear();
+        accountTransferNewToOldNicknames.clear();
+        transferConfirmations.clear();
         if (plugin.getConfig().getBoolean("Tweaks.MaceDenier.Enabled"))
             maceDenierCustomNames.addAll(plugin.getConfig().getStringList("Tweaks.MaceDenier.CustomNames"));
         if (plugin.getConfig().getBoolean("Tweaks.ItemLock.Enabled"))
@@ -92,6 +112,188 @@ public class ConfigManager {
             for (com.hibiscusmc.hmccosmetics.cosmetic.Cosmetic cosmetic : com.hibiscusmc.hmccosmetics.cosmetic.Cosmetics.values()) {
                 cosmeticPermissionsToNames.put(cosmetic.getPermission(),cosmetic.getId());
             }
+        }
+        File transfersFile = new File(VineriumCore.inst().getDataFolder().getPath() + File.separator + "PendingTransfers.yml");
+        try {
+            transfersFile.createNewFile();
+            if (transfersFile.exists()) {
+                YamlConfiguration transfersYaml = YamlConfiguration.loadConfiguration(transfersFile);
+                long nowTime = Instant.now().getEpochSecond();
+                long timeout = VineriumCore.inst().getConfig().getLong("AccountTransfer.KeepPendingTransfersTime",604800L);
+                if (transfersYaml.contains("PendingTransfers")) {
+                    for (String originalName : transfersYaml.getConfigurationSection("PendingTransfers").getKeys(false)) {
+                        String[] newNameData = transfersYaml.getString("PendingTransfers." + originalName).split(",");
+                        long requestCreationTime = Long.parseLong(newNameData[1]);
+                        if (requestCreationTime + timeout > nowTime) {
+                            pendingAccountTransfers.put(originalName,new Pair<>(newNameData[0], Long.parseLong(newNameData[1])));
+                            accountTransferNewToOldNicknames.put(newNameData[0],originalName);
+                        }
+                    }
+                }
+            }
+        } catch (IOException e) {
+            VinUtils.sendDebugMessage(0,"<red>Couldn't create account transfers file "+ transfersFile +"!");
+        }
+    }
+
+    public void savePendingTransfers() {
+        File transfersFile = new File(VineriumCore.inst().getDataFolder().getPath() + File.separator + "PendingTransfers.yml");
+        long nowTime = Instant.now().getEpochSecond();
+        long timeout = VineriumCore.inst().getConfig().getLong("AccountTransfer.KeepPendingTransfersTime",604800L);
+        try {
+            transfersFile.createNewFile();
+            if (transfersFile.exists()) {
+                YamlConfiguration transfersYaml = YamlConfiguration.loadConfiguration(transfersFile);
+                for (String originalName : pendingAccountTransfers.keySet()) {
+                    Pair<String, Long> pair = pendingAccountTransfers.get(originalName);
+                    long requestCreationTime = pair.getSecond();
+                    if (requestCreationTime + timeout > nowTime) {
+                        transfersYaml.set("PendingTransfers." + originalName, pair.getFirst() + "," + pair.getSecond());
+                    }
+                }
+                transfersYaml.save(transfersFile);
+            }
+        } catch (IOException e) {
+            VinUtils.sendDebugMessage(0,"<red>Couldn't save account transfers file "+ transfersFile +"!");
+        }
+    }
+
+    public void performAccountTransfer(CommandSender sender, String oldPlayerName, String newPlayerName) {
+        OfflinePlayer oldOfflinePlayer = Bukkit.getOfflinePlayer(oldPlayerName);
+        OfflinePlayer newOfflinePlayer = Bukkit.getOfflinePlayer(newPlayerName);
+        if (!oldOfflinePlayer.hasPlayedBefore() || (!newOfflinePlayer.hasPlayedBefore() && !newOfflinePlayer.isOnline())) {
+            Objects.requireNonNullElseGet(sender, Bukkit::getConsoleSender)
+                    .sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "account_transfer_not_played",
+                    oldPlayerName, newPlayerName));
+            return;
+        }
+        Objects.requireNonNullElseGet(sender, Bukkit::getConsoleSender)
+                .sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "account_transfer_started",
+                oldOfflinePlayer.getName(), oldOfflinePlayer.getUniqueId().toString(), newOfflinePlayer.getName(), newOfflinePlayer.getUniqueId().toString()));
+        if (VineriumCore.inst().getConfig().getBoolean("AccountTransfer.LuckPerms",true)) {
+            VineriumCore.inst().getLuckPermsManager().copyPermissions(oldOfflinePlayer,newOfflinePlayer);
+        }
+        String playerDataPath = VineriumCore.inst().getConfig().getString("AccountTransfer.PlayerDataPath","world");
+        if (VineriumCore.inst().getConfig().getBoolean("AccountTransfer.Advancements",true)) {
+            File advancementFile = new File( VineriumCore.inst().getServer().getWorldContainer() + File.separator
+                    + playerDataPath + File.separator + "players" + File.separator + "advancements" + File.separator + oldOfflinePlayer.getUniqueId()+".json");
+            if (advancementFile.exists()) {
+                try {
+                    File newFile = new File( VineriumCore.inst().getServer().getWorldContainer() + File.separator
+                            + playerDataPath + File.separator + "players" + File.separator + "advancements" + File.separator + newOfflinePlayer.getUniqueId()+".json");
+                    if (newFile.exists())
+                        newFile.delete();
+                    Files.copy(advancementFile.toPath(), newFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            else {
+                Objects.requireNonNullElseGet(sender, Bukkit::getConsoleSender)
+                        .sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "account_transfer_advancements_does_not_exist"));
+            }
+        }
+        if (VineriumCore.inst().getConfig().getBoolean("AccountTransfer.Stats",true)) {
+            File statsFile = new File(VineriumCore.inst().getServer().getWorldContainer() + File.separator
+                    + playerDataPath + File.separator + "players" + File.separator + "stats" + File.separator + oldOfflinePlayer.getUniqueId()+".json");
+            if (statsFile.exists()) {
+                try {
+                    File newFile = new File(VineriumCore.inst().getServer().getWorldContainer() + File.separator
+                            + playerDataPath + File.separator + "players" + File.separator + "stats" + File.separator + newOfflinePlayer.getUniqueId()+".json");
+                    if (newFile.exists())
+                        newFile.delete();
+                    Files.copy(statsFile.toPath(), newFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            else {
+                Objects.requireNonNullElseGet(sender, Bukkit::getConsoleSender)
+                        .sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "account_transfer_stats_does_not_exist"));
+            }
+        }
+        Player oldPlayer = null;
+        Player newPlayer = null;
+        if (VineriumCore.inst().getConfig().getBoolean("AccountTransfer.Inventory",true)) {
+            if (oldOfflinePlayer.hasPlayedBefore() && VineriumCore.inst().isCMIEnabled()) {
+                if (oldPlayer == null) {
+                    com.Zrips.CMI.Containers.CMIUser oldUser = com.Zrips.CMI.Containers.CMIUser.getUser(oldOfflinePlayer.getUniqueId());
+                    // Ложная ошибка - в CMI API все методы выдают null
+                    oldPlayer = oldUser.getPlayer(true);
+                }
+                if (newPlayer == null) {
+                    com.Zrips.CMI.Containers.CMIUser newUser = com.Zrips.CMI.Containers.CMIUser.getUser(newOfflinePlayer.getUniqueId());
+                    // Ложная ошибка - в CMI API все методы выдают null
+                    newPlayer = newUser.getPlayer(true);
+                }
+
+                for (int slot = 0; slot <= 40; slot++) {
+                    ItemStack itemStack = oldPlayer.getInventory().getItem(slot);
+                    if (itemStack != null) {
+                        newPlayer.getInventory().setItem(slot,itemStack);
+                    }
+                }
+            }
+            else {
+                Objects.requireNonNullElseGet(sender, Bukkit::getConsoleSender)
+                        .sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "account_transfer_inventory_error"));
+            }
+        }
+        if (VineriumCore.inst().getConfig().getBoolean("AccountTransfer.EnderChest",true)) {
+            if (oldOfflinePlayer.hasPlayedBefore() && newOfflinePlayer.hasPlayedBefore() && VineriumCore.inst().isCMIEnabled()) {
+                if (oldPlayer == null || newPlayer == null) {
+                    if (oldPlayer == null) {
+                        com.Zrips.CMI.Containers.CMIUser oldUser = com.Zrips.CMI.Containers.CMIUser.getUser(oldOfflinePlayer.getUniqueId());
+                        // Ложная ошибка - в CMI API все методы выдают null
+                        oldPlayer = oldUser.getPlayer(true);
+                    }
+                    if (newPlayer == null) {
+                        com.Zrips.CMI.Containers.CMIUser newUser = com.Zrips.CMI.Containers.CMIUser.getUser(newOfflinePlayer.getUniqueId());
+                        // Ложная ошибка - в CMI API все методы выдают null
+                        newPlayer = newUser.getPlayer(true);
+                    }
+                }
+                if (oldPlayer != null && newPlayer != null) {
+                    for (int slot = 0; slot <= 27; slot++) {
+                        ItemStack itemStack = oldPlayer.getEnderChest().getItem(slot);
+                        if (itemStack != null)
+                            newPlayer.getEnderChest().setItem(slot,itemStack);
+                    }
+                }
+            }
+            else {
+                Objects.requireNonNullElseGet(sender, Bukkit::getConsoleSender)
+                        .sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "account_transfer_enderchest_error"));
+            }
+        }
+        if (newPlayer != null) {
+            newPlayer.updateInventory();
+            newPlayer.saveData();
+        }
+        if (VineriumCore.inst().getConfig().getBoolean("AccountTransfer.Money",true)) {
+            VaultManager vaultManager = VineriumLib.inst().getVaultManager();
+            if (vaultManager != null && vaultManager.getEconomyProvider() != null
+                    && oldOfflinePlayer.hasPlayedBefore() && newOfflinePlayer.hasPlayedBefore()) {
+                vaultManager.getEconomyProvider().depositPlayer(newOfflinePlayer,vaultManager.getEconomyProvider().getBalance(oldOfflinePlayer));
+            }
+            else
+                Objects.requireNonNullElseGet(sender, Bukkit::getConsoleSender)
+                        .sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "account_transfer_money_error"));
+        }
+        if (VineriumCore.inst().getConfig().getBoolean("AccountTransfer.CMI",true) && VineriumCore.inst().isCMIEnabled()) {
+            com.Zrips.CMI.CMI.getInstance().getPlayerManager().switchPlayerData(oldOfflinePlayer.getUniqueId(),newOfflinePlayer.getUniqueId());
+        }
+        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_completed"));
+        List<String> commands = VineriumCore.inst().getConfig().getStringList("AccountTransfer.Commands");
+        if (!commands.isEmpty()) {
+            Objects.requireNonNullElseGet(sender, Bukkit::getConsoleSender)
+                    .sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "account_transfer_commands_execute"));
+            for (String command : commands) {
+                Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(),command
+                        .replace("%old_player_name%",oldPlayerName).replace("%new_player_name%",newPlayerName));
+            }
+            Objects.requireNonNullElseGet(sender, Bukkit::getConsoleSender)
+                    .sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "account_transfer_commands_completed"));
         }
     }
 

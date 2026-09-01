@@ -77,6 +77,8 @@ public class VillagerListener implements Listener {
             ItemStack handItem = event.getPlayer().getInventory().getItemInMainHand();
             if (VineriumCore.inst().getConfig().contains("Tweaks.VillagerManualBreed.Items."+handItem.getType())) {
 
+                if (!villager.isAdult()) return;
+
                 PlayerManager playerManager = VineriumCore.inst().getPlayerManager();
 
                 HashMap<Player, ImmutablePair<String,Long>> timers = playerManager.getTimers()

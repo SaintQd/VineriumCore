@@ -5,39 +5,50 @@ import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import io.papermc.paper.block.TileStateInventoryHolder;
 import io.papermc.paper.command.brigadier.Commands;
 import io.papermc.paper.command.brigadier.argument.ArgumentTypes;
 import io.papermc.paper.command.brigadier.argument.resolvers.selector.PlayerSelectorArgumentResolver;
 import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.ItemLore;
 import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+import kotlin.Pair;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.key.Key;
+import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import net.kyori.adventure.title.Title;
+import net.kyori.adventure.util.Ticks;
 import net.kyori.adventure.util.TriState;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.permissions.PermissionAttachmentInfo;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitScheduler;
+import org.bukkit.scheduler.BukkitTask;
+import org.intellij.lang.annotations.Subst;
 import org.saintqd.vineriumcore.VineriumCore;
 import org.saintqd.vineriumcore.gui.CalendarEventGUI;
 import org.saintqd.vineriumcore.gui.DecorationGUI;
 import org.saintqd.vineriumcore.gui.HMCCosmeticsGUI;
 import org.saintqd.vineriumcore.gui.ItemSkinGUI;
-import org.saintqd.vineriumcore.managers.ConfigManager;
-import org.saintqd.vineriumcore.managers.MailbookManager;
-import org.saintqd.vineriumcore.managers.PlayerManager;
-import org.saintqd.vineriumcore.managers.TradeManager;
+import org.saintqd.vineriumcore.managers.*;
 import org.saintqd.vineriumlib.VineriumLib;
+import org.saintqd.vineriumlib.managers.LangManager;
 import org.saintqd.vineriumlib.managers.VaultManager;
 import org.saintqd.vineriumlib.utils.VinUtils;
 
@@ -46,9 +57,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -61,11 +74,6 @@ public class VinCommandsManager {
             final Commands commands = event.registrar();
             commands.register(
                     Commands.literal("vin")
-                            .executes(commandContext -> {
-                                commandContext.getSource().getSender().sendMessage(
-                                        VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"not_enough_arguments"));
-                                return Command.SINGLE_SUCCESS;
-                            })
                             .then(Commands.literal("reload")
                                     .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.admin"))
                                     .executes(ctx -> {
@@ -147,6 +155,87 @@ public class VinCommandsManager {
                                             })
                                     )
                             )
+                            .then(Commands.literal("headdrop")
+                                    .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.headdroptoggle"))
+                                    .executes(ctx -> {
+                                        headDropToggleCommand(ctx.getSource().getSender(),null,null);
+                                        return com.mojang.brigadier.Command.SINGLE_SUCCESS;
+                                    })
+                                    .then(Commands.argument("state", StringArgumentType.word())
+                                            .suggests((ctx,builder) -> {
+                                                builder.suggest("true");
+                                                builder.suggest("false");
+                                                return builder.buildFuture();
+                                            })
+                                            .executes(ctx -> {
+                                                headDropToggleCommand(ctx.getSource().getSender(),ctx.getArgument("state",String.class),null);
+                                                return Command.SINGLE_SUCCESS;
+                                            })
+                                            .then(Commands.argument("player", ArgumentTypes.player())
+                                                    .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.admin"))
+                                                    .executes(ctx -> {
+                                                        headDropToggleCommand(ctx.getSource().getSender(),
+                                                                ctx.getLastChild().getArgument("state",String.class),
+                                                                ctx.getArgument("player", PlayerSelectorArgumentResolver.class).resolve(ctx.getSource()).getFirst());
+                                                        return com.mojang.brigadier.Command.SINGLE_SUCCESS;
+                                                    })
+                                            )
+                                    )
+                            )
+                            .then(Commands.literal("deathknockout")
+                                    .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.deathknockouttoggle"))
+                                    .executes(ctx -> {
+                                        knockoutToggleCommand(ctx.getSource().getSender(),null,null);
+                                        return com.mojang.brigadier.Command.SINGLE_SUCCESS;
+                                    })
+                                    .then(Commands.argument("state", StringArgumentType.word())
+                                            .suggests((ctx,builder) -> {
+                                                builder.suggest("true");
+                                                builder.suggest("false");
+                                                return builder.buildFuture();
+                                            })
+                                            .executes(ctx -> {
+                                                knockoutToggleCommand(ctx.getSource().getSender(),ctx.getArgument("state",String.class),null);
+                                                return Command.SINGLE_SUCCESS;
+                                            })
+                                            .then(Commands.argument("player", ArgumentTypes.player())
+                                                    .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.admin"))
+                                                    .executes(ctx -> {
+                                                        knockoutToggleCommand(ctx.getSource().getSender(),
+                                                                ctx.getLastChild().getArgument("state",String.class),
+                                                                ctx.getArgument("player", PlayerSelectorArgumentResolver.class).resolve(ctx.getSource()).getFirst());
+                                                        return com.mojang.brigadier.Command.SINGLE_SUCCESS;
+                                                    })
+                                            )
+                                    )
+                            )
+                            .then(Commands.literal("togglephantoms")
+                                    .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.togglephantoms"))
+                                    .executes(ctx -> {
+                                        phantomsToggleCommand(ctx.getSource().getSender(),null,null);
+                                        return com.mojang.brigadier.Command.SINGLE_SUCCESS;
+                                    })
+                                    .then(Commands.argument("state", StringArgumentType.word())
+                                            .suggests((ctx,builder) -> {
+                                                builder.suggest("true");
+                                                builder.suggest("false");
+                                                return builder.buildFuture();
+                                            })
+                                            .executes(ctx -> {
+                                                phantomsToggleCommand(ctx.getSource().getSender(),ctx.getArgument("state",String.class),null);
+                                                return Command.SINGLE_SUCCESS;
+                                            })
+                                            .then(Commands.argument("player", ArgumentTypes.player())
+                                                    .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.admin"))
+                                                    .executes(ctx -> {
+                                                        phantomsToggleCommand(ctx.getSource().getSender(),
+                                                                ctx.getLastChild().getArgument("state",String.class),
+                                                                ctx.getArgument("player", PlayerSelectorArgumentResolver.class).resolve(ctx.getSource()).getFirst());
+                                                        return com.mojang.brigadier.Command.SINGLE_SUCCESS;
+                                                    })
+                                            )
+                                    )
+                            )
                             .then(Commands.literal("savedata")
                                     .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.admin"))
                                     .executes(ctx -> {
@@ -205,6 +294,43 @@ public class VinCommandsManager {
                                             )
                                     )
                             )
+                            .then(Commands.literal("changenickname")
+                                    .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.changenickname")
+                                    || predicate.getSender().hasPermission("vineriumcore.changenickname.once"))
+                                    .then(Commands.argument("new_player_name", StringArgumentType.string())
+                                            .suggests((ctx,builder) -> {
+                                                String partName = builder.getRemaining();
+                                                Bukkit.getOnlinePlayers().forEach(onlinePlayer -> {
+                                                    if (onlinePlayer.getName().startsWith(partName))
+                                                        builder.suggest(onlinePlayer.getName());
+                                                });
+                                                return builder.buildFuture();
+                                            })
+                                            .executes(ctx -> {
+                                                changeAccountNicknameCommand(ctx.getSource().getSender(),
+                                                        ctx.getLastChild().getArgument("new_player_name", String.class),
+                                                        null);
+                                                return Command.SINGLE_SUCCESS;
+                                            })
+                                            .then(Commands.argument("old_player_name", StringArgumentType.string())
+                                                    .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.admin"))
+                                                    .suggests((ctx,builder) -> {
+                                                        String partName = builder.getRemaining();
+                                                        Bukkit.getOnlinePlayers().forEach(onlinePlayer -> {
+                                                            if (onlinePlayer.getName().startsWith(partName))
+                                                                builder.suggest(onlinePlayer.getName());
+                                                        });
+                                                        return builder.buildFuture();
+                                                    })
+                                                    .executes(ctx -> {
+                                                        changeAccountNicknameCommand(ctx.getSource().getSender(),
+                                                                ctx.getLastChild().getArgument("new_player_name", String.class),
+                                                                ctx.getArgument("old_player_name", String.class));
+                                                        return Command.SINGLE_SUCCESS;
+                                                    })
+                                            )
+                                    )
+                            )
                             .then(Commands.literal("lockitem")
                                     .requires(predicate -> predicate.getSender() instanceof Player)
                                     .executes(ctx -> {
@@ -219,8 +345,23 @@ public class VinCommandsManager {
                                         return Command.SINGLE_SUCCESS;
                                     })
                             )
-                            .then(Commands.literal("me")
+                            .then(Commands.literal("signitem")
                                     .requires(predicate -> predicate.getSender() instanceof Player)
+                                    .executes(ctx -> {
+                                        signItemCommand(ctx.getSource().getSender());
+                                        return Command.SINGLE_SUCCESS;
+                                    })
+                            )
+                            .then(Commands.literal("unsignitem")
+                                    .requires(predicate -> predicate.getSender() instanceof Player)
+                                    .executes(ctx -> {
+                                        unsignItemCommand(ctx.getSource().getSender());
+                                        return Command.SINGLE_SUCCESS;
+                                    })
+                            )
+                            .then(Commands.literal("me")
+                                    .requires(predicate -> predicate.getSender() instanceof Player
+                                            && predicate.getSender().hasPermission("vineriumcore.me"))
                                     .then(Commands.argument("action", StringArgumentType.greedyString())
                                             .executes(ctx -> {
                                                 meCommand(ctx.getSource().getSender(),ctx.getArgument("action", String.class));
@@ -229,13 +370,32 @@ public class VinCommandsManager {
                                     )
                             )
                             .then(Commands.literal("try")
-                                    .requires(predicate -> predicate.getSender() instanceof Player)
+                                    .requires(predicate -> predicate.getSender() instanceof Player
+                                            && predicate.getSender().hasPermission("vineriumcore.try"))
                                     .then(Commands.argument("action", StringArgumentType.greedyString())
                                             .executes(ctx -> {
                                                 tryCommand(ctx.getSource().getSender(),ctx.getArgument("action", String.class));
                                                 return Command.SINGLE_SUCCESS;
                                             })
                                     )
+                            )
+                            .then(Commands.literal("do")
+                                    .requires(predicate -> predicate.getSender() instanceof Player
+                                            && predicate.getSender().hasPermission("vineriumcore.do"))
+                                    .then(Commands.argument("action", StringArgumentType.greedyString())
+                                            .executes(ctx -> {
+                                                doCommand(ctx.getSource().getSender(),ctx.getArgument("action", String.class));
+                                                return Command.SINGLE_SUCCESS;
+                                            })
+                                    )
+                            )
+                            .then(Commands.literal("blockdata")
+                                    .requires(predicate -> predicate.getSender() instanceof Player
+                                            && predicate.getSender().hasPermission("vineriumcore.blockdata"))
+                                    .executes(ctx -> {
+                                        blockDataCommand(ctx.getSource().getSender());
+                                        return Command.SINGLE_SUCCESS;
+                                    })
                             )
                             .then(Commands.literal("itemskin")
                                     .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.itemskin"))
@@ -400,13 +560,67 @@ public class VinCommandsManager {
                                     .executes(ctx -> {
                                         eventsMenuCommand(ctx.getSource().getSender(),null);
                                         return Command.SINGLE_SUCCESS;
-                                    }))
+                                    })
                                     .then(Commands.argument("player", ArgumentTypes.player())
                                             .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.admin"))
                                             .executes(ctx -> {
                                                 eventsMenuCommand(ctx.getSource().getSender(),ctx.getArgument("player",PlayerSelectorArgumentResolver.class).resolve(ctx.getSource()).getFirst());
                                                 return Command.SINGLE_SUCCESS;
-                                            }))
+                                            })
+                                    )
+                            )
+                            .then(Commands.literal("inspect")
+                                    .then(Commands.argument("player", ArgumentTypes.player())
+                                            .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.inspect"))
+                                            .executes(ctx -> {
+                                                inspectPlayerCommand(ctx.getSource().getSender(),
+                                                        ctx.getArgument("player",PlayerSelectorArgumentResolver.class).resolve(ctx.getSource()).getFirst());
+                                                return Command.SINGLE_SUCCESS;
+                                            })
+                                    )
+                            )
+                            .then(Commands.literal("guide")
+                                    .requires( predicate -> !predicate.getSender().hasPermission(
+                                            VineriumCore.inst().getConfig().getString("Guide.CompletedPermission","vineriumcore.guide.completed"))
+                                            && VineriumCore.inst().getConfig().getBoolean("Guide.Enabled",true))
+                                    .executes(ctx -> {
+                                        guideApplyCommand(ctx.getSource().getSender());
+                                        return Command.SINGLE_SUCCESS;
+                                    })
+                            )
+                            .then(Commands.literal("guidecomplete")
+                                    .requires(predicate -> predicate.getSender().hasPermission(
+                                            VineriumCore.inst().getConfig().getString("Guide.ReceivePermission","vineriumcore.guide.receive"))
+                                            && VineriumCore.inst().getConfig().getBoolean("Guide.Enabled",true))
+                                    .then(Commands.argument("player", ArgumentTypes.player())
+                                            .executes(ctx -> {
+                                                guideCompleteCommand(ctx.getSource().getSender(),
+                                                        ctx.getArgument("player",PlayerSelectorArgumentResolver.class).resolve(ctx.getSource()).getFirst());
+                                                return Command.SINGLE_SUCCESS;
+                                            })
+                                    )
+                            )
+                            .then(Commands.literal("guidepick")
+                                    .requires(predicate -> predicate.getSender().hasPermission(
+                                            VineriumCore.inst().getConfig().getString("Guide.ReceivePermission","vineriumcore.guide.receive"))
+                                            && VineriumCore.inst().getConfig().getBoolean("Guide.Enabled",true))
+                                    .then(Commands.argument("player", ArgumentTypes.player())
+                                            .executes(ctx -> {
+                                                guidePickCommand(ctx.getSource().getSender(),
+                                                        ctx.getArgument("player",PlayerSelectorArgumentResolver.class).resolve(ctx.getSource()).getFirst());
+                                                return Command.SINGLE_SUCCESS;
+                                            })
+                                    )
+                            )
+                            .then(Commands.literal("consolemsg")
+                                    .requires(predicate -> predicate.getSender().hasPermission("vineriumcore.consolemsg"))
+                                    .then(Commands.argument("message", StringArgumentType.greedyString())
+                                            .executes(ctx -> {
+                                                sendMessageToConsoleCommand(ctx.getSource().getSender(),ctx.getArgument("message",String.class));
+                                                return Command.SINGLE_SUCCESS;
+                                            })
+                                    )
+                            )
                             .then(SuffixCommandsManager.getSuffixCommands())
                             .then(OresCommandsManager.getOresCommands())
                             .build(),
@@ -448,6 +662,13 @@ public class VinCommandsManager {
             sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"join_message_hint"));
             return;
         }
+        long nameCount = Pattern.compile("\\*")
+                .matcher(message).results().count();
+        if (nameCount > 1) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"join_leave_message_name_limit"));
+            return;
+        }
+        message = message.replace("<newline>","");
         // При использовании Alias CMI знак % заменяется на %. , ломая плейсхолдеры
         // Исправляем это фиксом ниже
         message = message.replace("%.","%");
@@ -504,6 +725,13 @@ public class VinCommandsManager {
             sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"leave_message_hint"));
             return;
         }
+        long nameCount = Pattern.compile("\\*")
+                .matcher(message).results().count();
+        if (nameCount > 1) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"join_leave_message_name_limit"));
+            return;
+        }
+        message = message.replace("<newline>","");
         message = message.replace("%.","%");
 
         String leaveMessage = message.replace(player.getName(),"*").replace(".","[dot]");
@@ -575,6 +803,90 @@ public class VinCommandsManager {
         playerManager.getTimers().put("pvp_toggle_cooldown",timers);
     }
 
+    private static void headDropToggleCommand(CommandSender sender, String state, Player player) {
+
+        player = VinUtils.checkForPlayerPresent(sender, player);
+        VaultManager vaultManager = VineriumLib.inst().getVaultManager();
+
+        boolean boolState;
+        if (state == null) {
+            TriState triState = player.permissionValue("vineriumcore.headdrop");
+            boolState = triState != TriState.TRUE;
+        }
+        else
+            boolState = Boolean.parseBoolean(state);
+
+        if (boolState) {
+            vaultManager.getPermissionProvider().playerAdd(null,player,"vineriumcore.headdrop");
+            if (sender == player)
+                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"head_drop_true"));
+            else
+                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"head_drop_true_other",player.getName()));
+        } else {
+            vaultManager.getPermissionProvider().playerRemove(null,player,"vineriumcore.headdrop");
+            if (sender == player)
+                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"head_drop_false"));
+            else
+                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"head_drop_false_other",player.getName()));
+        }
+    }
+
+    private static void knockoutToggleCommand(CommandSender sender, String state, Player player) {
+
+        player = VinUtils.checkForPlayerPresent(sender, player);
+        VaultManager vaultManager = VineriumLib.inst().getVaultManager();
+
+        boolean boolState;
+        if (state == null) {
+            TriState triState = player.permissionValue("vineriumcore.deathknockout");
+            boolState = triState != TriState.TRUE;
+        }
+        else
+            boolState = Boolean.parseBoolean(state);
+
+        if (boolState) {
+            vaultManager.getPermissionProvider().playerAdd(null,player,"vineriumcore.deathknockout");
+            if (sender == player)
+                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"death_knockout_toggle_false"));
+            else
+                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"death_knockout_toggle_false_other",player.getName()));
+        } else {
+            vaultManager.getPermissionProvider().playerRemove(null,player,"vineriumcore.deathknockout");
+            if (sender == player)
+                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"death_knockout_toggle_true"));
+            else
+                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"death_knockout_toggle_true_other",player.getName()));
+        }
+    }
+
+    private static void phantomsToggleCommand(CommandSender sender, String state, Player player) {
+
+        player = VinUtils.checkForPlayerPresent(sender, player);
+        VaultManager vaultManager = VineriumLib.inst().getVaultManager();
+
+        boolean boolState;
+        if (state == null) {
+            TriState triState = player.permissionValue("vineriumcore.phantomsdisabled");
+            boolState = triState != TriState.TRUE;
+        }
+        else
+            boolState = Boolean.parseBoolean(state);
+
+        if (boolState) {
+            vaultManager.getPermissionProvider().playerAdd(null,player,"vineriumcore.phantomsdisabled");
+            if (sender == player)
+                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"phantoms_toggle_false"));
+            else
+                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"phantoms_toggle_false_other",player.getName()));
+        } else {
+            vaultManager.getPermissionProvider().playerRemove(null,player,"vineriumcore.phantomsdisabled");
+            if (sender == player)
+                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"phantoms_toggle_true"));
+            else
+                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"phantoms_toggle_true_other",player.getName()));
+        }
+    }
+
     private static void sendHintCommand(CommandSender sender, int hintIndex, Player player) {
         if (hintIndex < 0)
             hintIndex = ThreadLocalRandom.current().nextInt(0,VineriumCore.inst().getHintManager().getHints().size());
@@ -594,124 +906,41 @@ public class VinCommandsManager {
         }
     }
 
+    private static void changeAccountNicknameCommand(CommandSender sender, String newPlayerName, String oldPlayerName) {
+        Player player;
+        if (oldPlayerName == null) {
+            player = VinUtils.checkForPlayerPresent(sender, null);
+            if (player == null) {
+                return;
+            }
+            oldPlayerName = player.getName();
+        }
+        player = Bukkit.getPlayer(oldPlayerName);
+        if (player != null) {
+            if (sender == player) {
+                if (!VineriumCore.inst().getConfigManager().getTransferConfirmations().getOrDefault(oldPlayerName,oldPlayerName).equals(newPlayerName)) {
+                    sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_changenickname_confirm_message",newPlayerName));
+                    VineriumCore.inst().getConfigManager().getTransferConfirmations().put(oldPlayerName,newPlayerName);
+                    return;
+                }
+            }
+            if (player.hasPermission("vineriumcore.changenickname.once") && VineriumLib.inst().getVaultManager() != null) {
+                VineriumLib.inst().getVaultManager().getPermissionProvider().playerRemove(null,player,"vineriumcore.changenickname.once");
+            }
+            player.kick(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_kick_message"));
+        }
+        VineriumCore.inst().getConfigManager().getPendingAccountTransfers().put(oldPlayerName,new Pair<>(newPlayerName, Instant.now().getEpochSecond()));
+        VineriumCore.inst().getConfigManager().getAccountTransferNewToOldNicknames().put(newPlayerName,oldPlayerName);
+        for (String command : VineriumCore.inst().getConfig().getStringList("AccountTransfer.CommandsBeforeTransfer")) {
+            Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(),command
+                    .replace("%old_player_name%",oldPlayerName).replace("%new_player_name%",newPlayerName));
+        }
+        if (sender != player)
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_changenickname_message",oldPlayerName,newPlayerName));
+    }
+
     private static void transferAccountCommand(CommandSender sender, String oldPlayerName, String newPlayerName) {
-        OfflinePlayer oldOfflinePlayer = Bukkit.getOfflinePlayer(oldPlayerName);
-        OfflinePlayer newOfflinePlayer = Bukkit.getOfflinePlayer(newPlayerName);
-        if (!oldOfflinePlayer.hasPlayedBefore() || (!newOfflinePlayer.hasPlayedBefore() && !newOfflinePlayer.isOnline())) {
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_not_played",
-                    oldPlayerName,newPlayerName));
-            return;
-        }
-        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_started",
-                oldOfflinePlayer.getName(),oldOfflinePlayer.getUniqueId().toString(),newOfflinePlayer.getName(),newOfflinePlayer.getUniqueId().toString()));
-        if (VineriumCore.inst().getConfig().getBoolean("AccountTransfer.LuckPerms",true)) {
-            VineriumCore.inst().getLuckPermsManager().copyPermissions(oldOfflinePlayer,newOfflinePlayer);
-        }
-        String playerDataPath = VineriumCore.inst().getConfig().getString("AccountTransfer.PlayerDataPath","world");
-        if (VineriumCore.inst().getConfig().getBoolean("AccountTransfer.Advancements",true)) {
-            File advancementFile = new File( VineriumCore.inst().getServer().getWorldContainer() + File.separator
-                    + playerDataPath + File.separator + "advancements" + File.separator + oldOfflinePlayer.getUniqueId()+".json");
-            if (advancementFile.exists()) {
-                try {
-                    File newFile = new File(VineriumCore.inst().getServer().getWorldContainer() + File.separator
-                            + playerDataPath + File.separator + "advancements" + File.separator + newOfflinePlayer.getUniqueId()+".json");
-                    if (newFile.exists())
-                        newFile.delete();
-                    Files.copy(advancementFile.toPath(), newFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-            else
-                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_advancements_does_not_exist"));
-        }
-        if (VineriumCore.inst().getConfig().getBoolean("AccountTransfer.Stats",true)) {
-            File statsFile = new File( VineriumCore.inst().getServer().getWorldContainer() + File.separator
-                    + playerDataPath + File.separator + "stats" + File.separator + oldOfflinePlayer.getUniqueId()+".json");
-            if (statsFile.exists()) {
-                try {
-                    File newFile = new File(VineriumCore.inst().getServer().getWorldContainer() + File.separator
-                            + playerDataPath + File.separator + "stats" + File.separator + newOfflinePlayer.getUniqueId()+".json");
-                    if (newFile.exists())
-                        newFile.delete();
-                    Files.copy(statsFile.toPath(), newFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-            else
-                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_stats_does_not_exist"));
-        }
-        Player oldPlayer = null;
-        Player newPlayer = null;
-        if (VineriumCore.inst().getConfig().getBoolean("AccountTransfer.Inventory",true)) {
-            if (oldOfflinePlayer.hasPlayedBefore() && newOfflinePlayer.hasPlayedBefore() && VineriumCore.inst().isCMIEnabled()) {
-                com.Zrips.CMI.Containers.CMIUser oldUser = com.Zrips.CMI.Containers.CMIUser.getUser(oldOfflinePlayer.getUniqueId());
-                com.Zrips.CMI.Containers.CMIUser newUser = com.Zrips.CMI.Containers.CMIUser.getUser(newOfflinePlayer.getUniqueId());
-                // Ложная ошибка - в CMI API все методы выдают null
-                oldPlayer = oldUser.getPlayer(true);
-                newPlayer = newUser.getPlayer(true);
-                if (oldPlayer != null && newPlayer != null) {
-                    for (int slot = 0; slot <= 40; slot++) {
-                        ItemStack itemStack = oldPlayer.getInventory().getItem(slot);
-                        if (itemStack != null)
-                            newPlayer.getInventory().setItem(slot, itemStack);
-                    }
-                }
-            }
-            else
-                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_inventory_error"));
-        }
-        if (VineriumCore.inst().getConfig().getBoolean("AccountTransfer.EnderChest",true)) {
-            if (oldOfflinePlayer.hasPlayedBefore() && newOfflinePlayer.hasPlayedBefore() && VineriumCore.inst().isCMIEnabled()) {
-                if (oldPlayer == null || newPlayer == null) {
-                    if (oldPlayer == null) {
-                        com.Zrips.CMI.Containers.CMIUser oldUser = com.Zrips.CMI.Containers.CMIUser.getUser(oldOfflinePlayer.getUniqueId());
-                        // Ложная ошибка - в CMI API все методы выдают null
-                        oldPlayer = oldUser.getPlayer(true);
-                    }
-                    if (newPlayer == null) {
-                        com.Zrips.CMI.Containers.CMIUser newUser = com.Zrips.CMI.Containers.CMIUser.getUser(newOfflinePlayer.getUniqueId());
-                        // Ложная ошибка - в CMI API все методы выдают null
-                        newPlayer = newUser.getPlayer(true);
-                    }
-                }
-                if (oldPlayer != null && newPlayer != null) {
-                    for (int slot = 0; slot <= 27; slot++) {
-                        ItemStack itemStack = oldPlayer.getEnderChest().getItem(slot);
-                        if (itemStack != null)
-                            newPlayer.getEnderChest().setItem(slot,itemStack);
-                    }
-                }
-            }
-            else
-                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_enderchest_error"));
-        }
-        if (newPlayer != null) {
-            newPlayer.saveData();
-        }
-        if (VineriumCore.inst().getConfig().getBoolean("AccountTransfer.Money",true)) {
-            VaultManager vaultManager = VineriumLib.inst().getVaultManager();
-            if (vaultManager != null && vaultManager.getEconomyProvider() != null
-                    && oldOfflinePlayer.hasPlayedBefore() && newOfflinePlayer.hasPlayedBefore()) {
-                vaultManager.getEconomyProvider().depositPlayer(newOfflinePlayer,vaultManager.getEconomyProvider().getBalance(oldOfflinePlayer));
-            }
-            else
-                sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_money_error"));
-        }
-        if (VineriumCore.inst().getConfig().getBoolean("AccountTransfer.CMI",true) && VineriumCore.inst().isCMIEnabled()) {
-            com.Zrips.CMI.CMI.getInstance().getPlayerManager().switchPlayerData(oldOfflinePlayer.getUniqueId(),newOfflinePlayer.getUniqueId());
-        }
-        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_completed"));
-        List<String> commands = VineriumCore.inst().getConfig().getStringList("AccountTransfer.Commands");
-        if (!commands.isEmpty()) {
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_commands_execute"));
-            for (String command : commands) {
-                Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(),command
-                        .replace("%old_player_name%",oldPlayerName).replace("%new_player_name%",newPlayerName));
-            }
-            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"account_transfer_commands_completed"));
-        }
+        VineriumCore.inst().getConfigManager().performAccountTransfer(sender,oldPlayerName,newPlayerName);
     }
 
     private static void lockItemCommand(CommandSender sender) {
@@ -771,12 +1000,83 @@ public class VinCommandsManager {
         sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"unlock_item_success"));
     }
 
+    private static void signItemCommand(CommandSender sender) {
+        Player player = VinUtils.checkForPlayerPresent(sender, null);
+
+        ItemStack templateItem = player.getInventory().getItemInMainHand();
+        if (templateItem.getType() == Material.AIR) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"sign_item_command_hint"));
+            return;
+        }
+        if (templateItem.getPersistentDataContainer().has(ConfigManager.getSignKey())) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"sign_item_already_signed"));
+            return;
+        }
+        templateItem.editPersistentDataContainer(pdc -> pdc.set(
+                ConfigManager.getSignKey(), PersistentDataType.STRING,player.getName()));
+        List<Component> lore = templateItem.hasData(DataComponentTypes.LORE)
+                ? templateItem.getData(DataComponentTypes.LORE).lines()
+                : new ArrayList<>();
+        ItemLore.Builder newLore = ItemLore.lore().addLines(lore)
+                .addLine(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"sign_item_command_lore",player.getName()));
+        templateItem.setData(DataComponentTypes.LORE,newLore);
+        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"sign_item_command_success"));
+    }
+
+    private static void unsignItemCommand(CommandSender sender) {
+        Player player = VinUtils.checkForPlayerPresent(sender, null);
+
+        ItemStack templateItem = player.getInventory().getItemInMainHand();
+        if (templateItem.getType() == Material.AIR) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"sign_item_command_hint"));
+            return;
+        }
+        String ownerName = templateItem.getPersistentDataContainer().getOrDefault(ConfigManager.getSignKey(),PersistentDataType.STRING,"");
+        if (ownerName.isEmpty()) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"unsign_item_not_signed"));
+            return;
+        }
+        if (!ownerName.equals(player.getName())) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"unsign_item_not_owner"));
+            return;
+        }
+        templateItem.editPersistentDataContainer(pdc -> pdc.remove(
+                ConfigManager.getSignKey()));
+        if (templateItem.hasData(DataComponentTypes.LORE)) {
+            List<Component> lore = new ArrayList<>(templateItem.getData(DataComponentTypes.LORE).lines());
+            if (!lore.isEmpty())
+                lore.removeLast();
+            templateItem.setData(DataComponentTypes.LORE,ItemLore.lore(lore));
+        }
+        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"unsign_item_command_success"));
+    }
+
     private static void meCommand(CommandSender sender, String action) {
 
         Player player = VinUtils.checkForPlayerPresent(sender, null);
 
         int radius = VineriumCore.inst().getConfig().getInt("Messages.Me.Distance",25);
         String format = VineriumCore.inst().getConfig().getString("Messages.Me.Format","");
+        if (format.isEmpty())
+            return;
+        action = MiniMessage.miniMessage().stripTags(action);
+        format = format.replace("%name%",VineriumCore.inst().getConfig().getString("Messages.NicknameFormat",player.getName()))
+                .replace("%message%",action);
+
+        Component text = VineriumLib.inst().isPlaceholderAPIEnabled()
+                ? VinUtils.parseString(me.clip.placeholderapi.PlaceholderAPI.setPlaceholders(player,me.clip.placeholderapi.PlaceholderAPI.setPlaceholders(player,format)))
+                : VinUtils.parseString(format);
+
+        Audience audience = Audience.audience(player.getWorld().getNearbyPlayers(player.getLocation(),radius));
+        audience.sendMessage(text);
+    }
+
+    private static void doCommand(CommandSender sender, String action) {
+
+        Player player = VinUtils.checkForPlayerPresent(sender, null);
+
+        int radius = VineriumCore.inst().getConfig().getInt("Messages.Do.Distance",25);
+        String format = VineriumCore.inst().getConfig().getString("Messages.Do.Format","");
         if (format.isEmpty())
             return;
         action = MiniMessage.miniMessage().stripTags(action);
@@ -882,6 +1182,26 @@ public class VinCommandsManager {
         player.openInventory(decorationGUI.getInventory());
     }
 
+    private static void blockDataCommand(CommandSender sender) {
+
+        Player player = VinUtils.checkForPlayerPresent(sender, null);
+
+        Block block = player.getTargetBlockExact(7);
+        if (block == null) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"command_blockdata_no_block"));
+            return;
+        }
+        if (!(block.getState() instanceof TileStateInventoryHolder state)) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"command_blockdata_no_block"));
+            return;
+        }
+        sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"command_blockdata_title",block.getType().name()));
+        if (state.getPersistentDataContainer().has(ShulkerAlertManager.SHULKER_UUID_KEY)) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"command_blockdata_list_format",ShulkerAlertManager.SHULKER_UUID_KEY.getKey(),
+                    state.getPersistentDataContainer().get(ShulkerAlertManager.SHULKER_UUID_KEY,PersistentDataType.STRING)));
+        }
+    }
+
     private static void openTradeCommand(CommandSender sender, String tradeName, Player player) {
 
         player = VinUtils.checkForPlayerPresent(sender, player);
@@ -973,20 +1293,23 @@ public class VinCommandsManager {
     private static void setConfirmationStatusCommand(CommandSender sender, boolean state, Player player) {
 
         player = VinUtils.checkForPlayerPresent(sender, player);
+        if (player == null)
+            return;
         PlayerManager playerManager = VineriumCore.inst().getPlayerManager();
         VaultManager vaultManager = VineriumLib.inst().getVaultManager();
 
         HashMap<Player, ImmutablePair<String,Long>> timers = playerManager.getTimers().getOrDefault("confirmation_status_cooldown",new HashMap<>());
         ImmutablePair<String,Long> timerVariable = timers.getOrDefault(player,new ImmutablePair<>(null,0L));
+        String permission = VineriumCore.inst().getConfig().getString("ConfirmationStatus.Permission","group.rp");
 
         if (sender == player) {
             if (state) {
-                if (player.permissionValue("vineriumcore.status.confirmation") == TriState.TRUE) {
+                if (player.permissionValue(permission) == TriState.TRUE) {
                     sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "command_confirmation_status_already_has"));
                 }
                 else {
                     if (timerVariable.getRight() > VinUtils.getCurrentTick()) {
-                        vaultManager.getPermissionProvider().playerAdd(null, player, "vineriumcore.status.confirmation");
+                        vaultManager.getPermissionProvider().playerAdd(null, player, permission);
                         sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "command_confirmation_status_success"));
                     } else {
                         sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "command_confirmation_status"));
@@ -999,7 +1322,7 @@ public class VinCommandsManager {
             }
             else {
                 if (player.hasPermission("vineriumcore.admin")) {
-                    vaultManager.getPermissionProvider().playerRemove(null,player,"vineriumcore.status.confirmation");
+                    vaultManager.getPermissionProvider().playerRemove(null,player,permission);
                     sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "command_confirmation_status_remove"));
                 }
                 else {
@@ -1009,11 +1332,11 @@ public class VinCommandsManager {
         }
         else {
             if (state) {
-                vaultManager.getPermissionProvider().playerAdd(null,player,"vineriumcore.status.confirmation");
+                vaultManager.getPermissionProvider().playerAdd(null,player,permission);
                 sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "command_confirmation_status_success_for_player",player.getName()));
             }
             else {
-                vaultManager.getPermissionProvider().playerRemove(null,player,"vineriumcore.status.confirmation");
+                vaultManager.getPermissionProvider().playerRemove(null,player,permission);
                 sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "command_confirmation_status_remove_for_player",player.getName()));
             }
         }
@@ -1022,9 +1345,136 @@ public class VinCommandsManager {
     private static void eventsMenuCommand(CommandSender sender, Player player) {
 
         player = VinUtils.checkForPlayerPresent(sender, player);
+        if (player == null)
+            return;
 
         CalendarEventGUI timedEventGUI = new CalendarEventGUI(player);
         timedEventGUI.setMainMenu();
         player.openInventory(timedEventGUI.getInventory());
+    }
+
+    private static void inspectPlayerCommand(CommandSender sender, Player inspectedPlayer) {
+
+        if (inspectedPlayer.hasPermission("vineriumcore.admin")) {
+            sender.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"command_inspect_wrong_player"));
+            return;
+        }
+        if (VineriumCore.inst().getPlayerManager().getInspectedPlayers().containsKey(inspectedPlayer.getUniqueId())) {
+            BukkitRunnable runnable = VineriumCore.inst().getPlayerManager().getInspectedPlayers().remove(inspectedPlayer.getUniqueId());
+            runnable.cancel();
+            inspectedPlayer.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"command_inspect_resume"));
+            Bukkit.getOnlinePlayers().stream().filter(player -> player.hasPermission("vineriumcore.inspect")).forEach(player -> {
+                player.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"command_inspect_resume_message",inspectedPlayer.getName()));
+            });
+        }
+        else {
+            inspectedPlayer.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"command_inspect_chat_message",inspectedPlayer.getName()));
+            Bukkit.getOnlinePlayers().stream().filter(player -> player.hasPermission("vineriumcore.inspect")).forEach(player -> {
+                player.sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"command_inspect_message",inspectedPlayer.getName()));
+            });
+            UUID playerUuid = inspectedPlayer.getUniqueId();
+            BukkitRunnable runnable = new BukkitRunnable() {
+                @Override
+                public void run() {
+                    Player playerByUuid = Bukkit.getPlayer(playerUuid);
+                    if (playerByUuid != null && playerByUuid.isValid()) {
+                        playerByUuid.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE,100,4,false,false));
+                        playerByUuid.addPotionEffect(new PotionEffect(PotionEffectType.FIRE_RESISTANCE,100,0,false,false));
+                        playerByUuid.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS,100,200,false,false));
+                        playerByUuid.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS,100,0,false,false));
+                        playerByUuid.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST,100,200,false,false));
+
+                        playerByUuid.showTitle(Title.title(
+                                VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "command_inspect_title"),
+                                VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(), "command_inspect_subtitle"),
+                                Title.Times.times(Ticks.duration(0), Ticks.duration(30), Ticks.duration(20))
+                        ));
+                        playerByUuid.setFallDistance(0.0f);
+                    }
+                    else {
+                        VineriumCore.inst().getPlayerManager().getInspectedPlayers().remove(playerUuid);
+                        this.cancel();
+                    }
+                }
+            };
+            runnable.runTaskTimer(VineriumCore.inst(), 20, 20);
+            VineriumCore.inst().getPlayerManager().getInspectedPlayers().put(inspectedPlayer.getUniqueId(),runnable);
+        }
+    }
+
+    private static void guideApplyCommand(CommandSender sender) {
+
+        Player player = VinUtils.checkForPlayerPresent(sender, null);
+        if (player == null)
+            return;
+
+        player.sendMessage(LangManager.INSTANCE.parseLangString(VineriumCore.inst(),"guide_apply_message"));
+        String receivePermission = VineriumCore.inst().getConfig().getString("Guide.ReceivePermission","vineriumcore.guide.receive");
+
+        String[] soundData = VineriumCore.inst().getConfig().getString("Guide.ApplySound","").split(",");
+        @Subst("minecraft:entity.player.levelup") String soundName = soundData[0];
+        float pitch = (soundData.length > 1) ? Float.parseFloat(soundData[1]) : 1.0f;
+        net.kyori.adventure.sound.Sound sound = (!soundName.isEmpty())
+                ? net.kyori.adventure.sound.Sound.sound(Key.key(soundName), Sound.Source.PLAYER,1f,pitch)
+                : null;
+
+        for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+            if (onlinePlayer.hasPermission(receivePermission)) {
+                onlinePlayer.sendMessage(LangManager.INSTANCE.parseLangString(VineriumCore.inst(),"guide_receive_message", player.getName()));
+                if (sound != null)
+                    onlinePlayer.playSound(sound,player);
+            }
+        }
+    }
+
+    private static void guideCompleteCommand(CommandSender sender, Player appliedPlayer) {
+
+        String completePermission = VineriumCore.inst().getConfig().getString("Guide.CompletedPermission","vineriumcore.guide.completed");
+
+        if (appliedPlayer.hasPermission(completePermission)) {
+            sender.sendMessage(LangManager.INSTANCE.parseLangString(VineriumCore.inst(),"guide_already_completed_message", appliedPlayer.getName()));
+            return;
+        }
+        VaultManager vaultManager = VineriumLib.inst().getVaultManager();
+        if (vaultManager == null)
+            return;
+        vaultManager.getPermissionProvider().playerAdd(null,appliedPlayer,completePermission);
+
+        VineriumCore.inst().getConfigManager().getGuidePickedPlayers().remove(appliedPlayer.getUniqueId());
+
+        appliedPlayer.sendMessage(LangManager.INSTANCE.parseLangString(VineriumCore.inst(),"guide_complete_message", sender.getName()));
+        sender.sendMessage(LangManager.INSTANCE.parseLangString(VineriumCore.inst(),"guide_complete_sender_message", appliedPlayer.getName()));
+    }
+
+    private static void guidePickCommand(CommandSender sender, Player appliedPlayer) {
+
+        Player player = VinUtils.checkForPlayerPresent(sender, null);
+        if (player == null)
+            return;
+
+        UUID receiverPlayer = VineriumCore.inst().getConfigManager().getGuidePickedPlayers().get(appliedPlayer.getUniqueId());
+        if (receiverPlayer != null) {
+            Player pickerPlayer =  Bukkit.getPlayer(receiverPlayer);
+            if (pickerPlayer != null && pickerPlayer.isOnline()) {
+                sender.sendMessage(LangManager.INSTANCE.parseLangString(VineriumCore.inst(),"guide_picked_already_message", appliedPlayer.getName(),pickerPlayer.getName()));
+                return;
+            }
+        }
+        VineriumCore.inst().getConfigManager().getGuidePickedPlayers().put(appliedPlayer.getUniqueId(),player.getUniqueId());
+        player.teleportAsync(appliedPlayer.getLocation());
+
+        appliedPlayer.sendMessage(LangManager.INSTANCE.parseLangString(VineriumCore.inst(),"guide_picked_message", player.getName()));
+
+        String receivePermission = VineriumCore.inst().getConfig().getString("Guide.ReceivePermission","vineriumcore.guide.receive");
+        for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+            if (onlinePlayer.hasPermission(receivePermission)) {
+                onlinePlayer.sendMessage(LangManager.INSTANCE.parseLangString(VineriumCore.inst(),"guide_picked_sender_message", player.getName(), appliedPlayer.getName()));
+            }
+        }
+    }
+
+    private static void sendMessageToConsoleCommand(CommandSender sender, String message) {
+
+        Bukkit.getServer().getConsoleSender().sendRichMessage(message);
     }
 }

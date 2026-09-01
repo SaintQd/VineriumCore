@@ -33,7 +33,7 @@ dependencies {
     compileOnly("com.gitlab.ruany:LiteBansAPI:0.6.1")
     compileOnly("net.luckperms:api:5.5")
     compileOnly("com.nexomc:nexo:1.17.0")
-    compileOnly("io.lumine:Mythic-Dist:5.10.1-SNAPSHOT")
+    compileOnly("io.lumine:Mythic-Dist:5.12.2-SNAPSHOT")
     compileOnly("com.hibiscusmc:HMCCosmetics:2.8.3")
     compileOnly("me.lojosho:HibiscusCommons:0.8.3-a89bcec3")
 

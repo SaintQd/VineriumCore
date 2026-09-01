@@ -277,7 +277,9 @@ public class SuffixCommandsManager {
         communitySuffix.getUsers().remove(playerName);
         communitySuffix.getUsers().add(playerName);
         if (VineriumLib.inst().getVaultManager() != null && VineriumLib.inst().getVaultManager().getPermissionProvider() != null)
-            VineriumLib.inst().getVaultManager().getPermissionProvider().playerAdd(null,offlinePlayer,suffix.getPermission());
+            Bukkit.getAsyncScheduler().runNow(VineriumCore.inst(), task -> {
+                VineriumLib.inst().getVaultManager().getPermissionProvider().playerAdd(null,offlinePlayer,suffix.getPermission());
+            });
         if (offlinePlayer.isOnline() && offlinePlayer.getPlayer() != null) {
             offlinePlayer.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_add_message",suffix.getParsedPlaceholder()));
         }
@@ -304,7 +306,9 @@ public class SuffixCommandsManager {
         OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
         communitySuffix.getUsers().remove(playerName);
         if (VineriumLib.inst().getVaultManager() != null && VineriumLib.inst().getVaultManager().getPermissionProvider() != null)
-            VineriumLib.inst().getVaultManager().getPermissionProvider().playerRemove(null,offlinePlayer,suffix.getPermission());
+            Bukkit.getAsyncScheduler().runNow(VineriumCore.inst(), task -> {
+                VineriumLib.inst().getVaultManager().getPermissionProvider().playerRemove(null,offlinePlayer,suffix.getPermission());
+            });
         if (offlinePlayer.isOnline() && offlinePlayer.getPlayer() != null) {
             VineriumCore.inst().getSuffixManager().checkSuffixPermission(offlinePlayer.getPlayer());
             offlinePlayer.getPlayer().sendMessage(VineriumLib.inst().getLangManager().parseLangString(VineriumCore.inst(),"community_suffix_remove_message",suffix.getParsedPlaceholder()));

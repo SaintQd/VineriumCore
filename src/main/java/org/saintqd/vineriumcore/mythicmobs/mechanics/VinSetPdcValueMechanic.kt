@@ -6,21 +6,23 @@ import io.lumine.mythic.api.skills.ITargetedEntitySkill
 import io.lumine.mythic.api.skills.SkillMetadata
 import io.lumine.mythic.api.skills.SkillResult
 import io.lumine.mythic.api.skills.placeholders.PlaceholderString
+import io.lumine.mythic.bukkit.events.MythicMechanicLoadEvent
 import io.lumine.mythic.core.skills.SkillExecutor
 import io.lumine.mythic.core.skills.SkillMechanic
+import io.lumine.mythic.core.skills.placeholders.PlaceholderContext
+import io.lumine.mythic.core.utils.annotations.MythicMechanic
 import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
 import org.bukkit.persistence.PersistentDataType
 import org.saintqd.vineriumlib.utils.VinUtils
 import java.io.File
 
-class VinSetPdcValueMechanic(manager : SkillExecutor, file : File, line : String, config : MythicLineConfig) : SkillMechanic(manager,file,line,config), ITargetedEntitySkill {
+@MythicMechanic(author = "SaintQd", name = "vinsetpdcvalue")
+class VinSetPdcValueMechanic(event : MythicMechanicLoadEvent) : ITargetedEntitySkill {
 
-    val key : NamespacedKey = NamespacedKey(
-        config.getString(arrayOf("namespace", "ns"),"minecraft"),
-        config.getString(arrayOf("key", "k"),"none")
-    )
-    val value : PlaceholderString = config.getPlaceholderString(arrayOf("value", "v"),"0")
+    val key = NamespacedKey.fromString(event.config.getPlaceholderString(arrayOf("name", "n"), "").get())!!
+
+    val value : PlaceholderString = event.config.getPlaceholderString(arrayOf("value", "v"),"0")
 
     override fun castAtEntity(
         data: SkillMetadata,
@@ -32,7 +34,8 @@ class VinSetPdcValueMechanic(manager : SkillExecutor, file : File, line : String
         if (bukkitEntity !is Player)
             return SkillResult.INVALID_TARGET
 
-        bukkitEntity.persistentDataContainer.set(key, PersistentDataType.STRING,value.get(data,target))
+        bukkitEntity.persistentDataContainer.set(key, PersistentDataType.STRING,value.get(
+            PlaceholderContext.builder().meta(data).entity(target).build()))
 
         return SkillResult.SUCCESS
     }

@@ -5,19 +5,19 @@ import io.lumine.mythic.api.config.MythicLineConfig
 import io.lumine.mythic.api.skills.ITargetedEntitySkill
 import io.lumine.mythic.api.skills.SkillMetadata
 import io.lumine.mythic.api.skills.SkillResult
+import io.lumine.mythic.bukkit.events.MythicMechanicLoadEvent
 import io.lumine.mythic.core.skills.SkillExecutor
 import io.lumine.mythic.core.skills.SkillMechanic
+import io.lumine.mythic.core.utils.annotations.MythicMechanic
 import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
 import org.saintqd.vineriumlib.utils.VinUtils
 import java.io.File
 
-class VinRemovePdcValueMechanic(manager : SkillExecutor, file : File, line : String, config : MythicLineConfig) : SkillMechanic(manager,file,line,config), ITargetedEntitySkill {
+@MythicMechanic(author = "SaintQd", name = "vinremovepdcvalue")
+class VinRemovePdcValueMechanic(event : MythicMechanicLoadEvent) : ITargetedEntitySkill {
 
-    val key : NamespacedKey = NamespacedKey(
-        config.getString(arrayOf("namespace", "ns"),"minecraft"),
-        config.getString(arrayOf("key", "k"),"none")
-    )
+    val key = NamespacedKey.fromString(event.config.getPlaceholderString(arrayOf("name", "n"), "").get())!!
 
     override fun castAtEntity(
         data: SkillMetadata,

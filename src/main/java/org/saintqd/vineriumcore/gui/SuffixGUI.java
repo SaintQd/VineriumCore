@@ -6,6 +6,7 @@ import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -62,7 +63,7 @@ public class SuffixGUI extends VinGUI {
             ItemStack suffixItem = ItemStack.of(Material.STONE);
             suffixItem.setData(DataComponentTypes.CUSTOM_NAME, VinUtils.parseString(suffix.getDisplayName()));
             if (suffix.getItemModel() != null)
-                suffixItem.setData(DataComponentTypes.ITEM_MODEL, VinUtils.parseNamespace(suffix.getItemModel().toLowerCase()));
+                suffixItem.setData(DataComponentTypes.ITEM_MODEL, NamespacedKey.fromString(suffix.getItemModel().toLowerCase()));
 
             ItemLore.Builder loreBuilder = ItemLore.lore();
 
